@@ -1,4 +1,0 @@
-(executable
- (public_name clowning)
- (name main)
- (libraries clowning))
