@@ -8,6 +8,11 @@
       position: relative;
       padding: 0;
       margin: 0;
+      touch-action: none;
+      overflow: hidden;
+    }
+    html {
+      overflow: hidden;
     }
     button {
       padding: 8px;
@@ -20,6 +25,8 @@
     .content-item {
       position: absolute;
       cursor: grab;
+      user-select: none;
+      border: 2px solid black;
     }
     .toolbar {
       position: fixed;
@@ -39,25 +46,53 @@
       height: 100%;
     }
     .root {
-        height: 100%;
-        width: 100%;
+      height: 100%;
+      width: 100%;
+    }
+    .focused {
+      border: 1px solid blue;
+    }
+    .grabbing {
+      cursor: grabbing;
     }
   </style>
   <body>
-      <div class="root">
-          <div class="toolbar">
-            <button id="paste-img-btn">paste img</button>
-            <button id="add-txt-btn">add text</button>
-            <button id="add-black-box">add black box</button>
-          </div>
-          <div class="content-area"></div>
+    <div class="root">
+      <div class="toolbar">
+        <button id="paste-img-btn">paste img</button>
+        <button id="add-txt-btn">add text</button>
+        <button id="add-black-box">add black box</button>
       </div>
+      <div class="content-area"></div>
+    </div>
   </body>
   <script>
     let focused_item = null;
-    const z_indexes = [0, 1, 2, 3, 4];
-    const paste_img_btn = document.getElementById("paste-img-btn");
-    paste_img_btn.onclick = (e) => {
+    let grabbed_item = null;
+    let diff_to_subtract_to_maintain_element_offset = null;
+    function setFocusedItem(e) {
+      if (e.target.classList.contains("content-item")) {
+        focused_item = e.target;
+        grabbed_item = focused_item;
+        focused_item.classList.add("focused");
+        grabbed_item.classList.add("grabbing");
+        let bbox = e.target.getBoundingClientRect();
+        diff_to_subtract_to_maintain_element_offset = [e.clientX - bbox.x, e.clientY - bbox.y];
+      }
+    }
+    function moveGrabbedItem(e) {
+      if (diff_to_subtract_to_maintain_element_offset === null || grabbed_item === null) {
+        return;
+      }
+      grabbed_item.style.transform = `translate(${e.clientX - diff_to_subtract_to_maintain_element_offset[0]}px, ${e.clientY - diff_to_subtract_to_maintain_element_offset[1]}px)`;
+    }
+    function pointerup(e) {
+      if (grabbed_item !== null) {
+        grabbed_item.classList.remove("grabbing");
+        diff_to_subtract_to_maintain_element_offset = null;
+      }
+    }
+    function getImageFromClipboard() {
       navigator.clipboard.read().then((items) => {
         const images = items.filter((i) => {
           return i.types.some((t) => t.includes("image"));
@@ -67,6 +102,7 @@
           i.getType(image_mime_type).then((blob) => {
             const imageUrl = URL.createObjectURL(blob);
             const img = new Image();
+            img.onpointerdown = setFocusedItem;
             img.classList.add("content-item");
             img.src = imageUrl;
             img.draggable = false;
@@ -75,6 +111,11 @@
           });
         });
       });
-    };
+    }
+    const paste_img_btn = document.getElementById("paste-img-btn");
+    paste_img_btn.onclick = getImageFromClipboard;
+    document.addEventListener("paste", getImageFromClipboard);
+    document.addEventListener("pointermove", moveGrabbedItem);
+    document.addEventListener("pointerup", pointerup);
   </script>
 </html>
