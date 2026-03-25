@@ -1,10 +1,15 @@
 <!doctype html>
 <html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       height: 100vh;
       width: 100vw;
-      box-sizing: border-box;
       position: relative;
       padding: 0;
       margin: 0;
@@ -21,12 +26,19 @@
       cursor: pointer;
       margin: 3px;
       font-size: 1.5em;
+      color: black;
+    }
+    @media (max-width: 800px) {
+      button {
+        font-size: 1em;
+      }
     }
     .content-item {
       position: absolute;
       cursor: grab;
       user-select: none;
-      border: 2px solid black;
+      -webkit-touch-callout: none;
+      outline: 2px solid black;
     }
     .toolbar {
       position: fixed;
@@ -44,13 +56,15 @@
       position: relative;
       width: 100%;
       height: 100%;
+      transform: scale(1);
     }
     .root {
       height: 100%;
       width: 100%;
     }
     .focused {
-      border: 1px solid blue;
+      border: none;
+      outline: 3px solid blue;
     }
     .grabbing {
       cursor: grabbing;
@@ -59,7 +73,7 @@
   <body>
     <div class="root">
       <div class="toolbar">
-        <button id="paste-img-btn">paste img</button>
+        <button id="paste-btn">paste</button>
         <button id="add-txt-btn">add text</button>
         <button id="add-black-box">add black box</button>
       </div>
@@ -67,55 +81,123 @@
     </div>
   </body>
   <script>
+    const content_area = document.querySelector(".content-area");
     let focused_item = null;
     let grabbed_item = null;
-    let diff_to_subtract_to_maintain_element_offset = null;
+    let focused_point_info = null;
+    let content_area_scale = 1;
+    let pointerDownEvents = [];
+    function unfocus(e) {
+      if (e.target !== focused_item) {
+        if (focused_item) {
+          focused_item.classList.remove("focused");
+        }
+        focused_item = null;
+        grabbed_item = null;
+        focused_point_info = null;
+      }
+    }
     function setFocusedItem(e) {
       if (e.target.classList.contains("content-item")) {
+        unfocus(e);
+        const node = e.target.parentNode.removeChild(e.target);
+        content_area.appendChild(node);
         focused_item = e.target;
         grabbed_item = focused_item;
         focused_item.classList.add("focused");
         grabbed_item.classList.add("grabbing");
         let bbox = e.target.getBoundingClientRect();
-        diff_to_subtract_to_maintain_element_offset = [e.clientX - bbox.x, e.clientY - bbox.y];
+        focused_point_info = { x: bbox.x, y: bbox.y, eventX: e.clientX, eventY: e.clientY };
       }
     }
+    function pointerDownHandler(e) {}
     function moveGrabbedItem(e) {
-      if (diff_to_subtract_to_maintain_element_offset === null || grabbed_item === null) {
+      if (focused_point_info === null || grabbed_item === null) {
         return;
       }
-      grabbed_item.style.transform = `translate(${e.clientX - diff_to_subtract_to_maintain_element_offset[0]}px, ${e.clientY - diff_to_subtract_to_maintain_element_offset[1]}px)`;
+      // need content_area_bbox to be used as an origin point
+      let content_area_bbox = content_area.getBoundingClientRect();
+      let { x, y, eventX, eventY } = focused_point_info;
+      let diff_x = x - eventX;
+      let diff_y = y - eventY;
+      // converting the e.client[X|Y] values to
+      // points on the scaled content_area DOM element
+      // cartesian plane and dividing by the scale amount
+      // to make sure movements are normalized to behave
+      // as if there was no scaling
+      grabbed_item.style.transform = `
+        translate(
+          ${(e.clientX - content_area_bbox.x + diff_x) / content_area_scale}px,
+          ${(e.clientY - content_area_bbox.y + diff_y) / content_area_scale}px
+        )
+        `;
     }
-    function pointerup(e) {
+    function pointerUpHandler(e) {
+      unfocus(e);
       if (grabbed_item !== null) {
         grabbed_item.classList.remove("grabbing");
-        diff_to_subtract_to_maintain_element_offset = null;
+        focused_point_info = null;
       }
     }
-    function getImageFromClipboard() {
+    function getContentClipboard() {
       navigator.clipboard.read().then((items) => {
         const images = items.filter((i) => {
-          return i.types.some((t) => t.includes("image"));
+          return i.types.some((t) => t.includes("image") || t.includes("text"));
         });
         images.forEach((i) => {
           const image_mime_type = i.types.find((t) => t.includes("image"));
-          i.getType(image_mime_type).then((blob) => {
-            const imageUrl = URL.createObjectURL(blob);
-            const img = new Image();
-            img.onpointerdown = setFocusedItem;
-            img.classList.add("content-item");
-            img.src = imageUrl;
-            img.draggable = false;
-            const content_area = document.querySelector(".content-area");
-            content_area.appendChild(img);
-          });
+          if (image_mime_type) {
+            i.getType(image_mime_type).then((blob) => {
+              const imageUrl = URL.createObjectURL(blob);
+              const img = new Image();
+              img.onpointerdown = setFocusedItem;
+              img.classList.add("content-item");
+              img.src = imageUrl;
+              img.draggable = false;
+              const content_area = document.querySelector(".content-area");
+              content_area.appendChild(img);
+            });
+          }
+          const text_plain_svg = i.types.find((t) => t === "text/plain");
+          if (text_plain_svg) {
+            i.getType(text_plain_svg).then((blob) => {
+              blob.text().then((t) => {
+                const d = new DOMParser();
+                const parsedDocument = d.parseFromString(t, "image/svg+xml");
+                if (!parsedDocument.querySelector("parsererror")) {
+                  const svg = parsedDocument.documentElement.outerHTML;
+                  const img = new Image();
+                  img.onpointerdown = setFocusedItem;
+                  img.classList.add("content-item");
+                  img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
+                  img.draggable = false;
+                  content_area.appendChild(img);
+                } else {
+                  throw Error("TODO");
+                }
+              });
+            });
+          }
         });
       });
     }
-    const paste_img_btn = document.getElementById("paste-img-btn");
-    paste_img_btn.onclick = getImageFromClipboard;
-    document.addEventListener("paste", getImageFromClipboard);
+    const paste_btn = document.getElementById("paste-btn");
+    paste_btn.onclick = getContentClipboard;
+    document.addEventListener("paste", getContentClipboard);
     document.addEventListener("pointermove", moveGrabbedItem);
-    document.addEventListener("pointerup", pointerup);
+    document.addEventListener("pointerup", pointerUpHandler);
+    document.addEventListener("pointerdown", pointerDownHandler);
+    document.addEventListener("copy", async () => {
+      if (focused_item) {
+        navigator.clipboard.write([
+          new ClipboardItem({
+            "image/png": await fetch(focused_item.src)
+              .then((r) => r.blob())
+              .then((blob) => blob),
+          }),
+        ]);
+      }
+    });
+    document.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
   </script>
 </html>
