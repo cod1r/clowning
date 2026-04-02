@@ -247,7 +247,7 @@
             let scale = Math.sign(e.deltaY) === 1 ? 0.97 : 1.03;
             const diff_x = e.clientX - (x + width / 2);
             const diff_y = e.clientY - (y + height / 2);
-            contentAreaMatrix.scaleSelf(scale, scale, scale, diff_x, diff_y);
+            contentAreaMatrix.scaleSelf(scale, scale, scale, diff_x / contentAreaMatrix.a, diff_y / contentAreaMatrix.a);
             content_area.style.transform = contentAreaMatrix.toString();
           } else {
             // moving around event
