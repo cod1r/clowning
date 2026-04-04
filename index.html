@@ -68,6 +68,10 @@
     .grabbing {
       cursor: grabbing;
     }
+    .content-item-container {
+      height: min-content;
+      width: min-content;
+    }
   </style>
   <body>
     <div class="root">
@@ -81,15 +85,83 @@
   </body>
   <script>
     const content_area = document.querySelector(".content-area");
+    const focusContainer = document.createElement("div");
+    focusContainer.id = "focus_container";
+    focusContainer.style.pointerEvents = "none";
+    focusContainer.style.position = "absolute";
+
+    const scale1 = document.createElement("div");
+    scale1.id = "scale1";
+    scale1.style.position = "absolute";
+    scale1.style.top = "-30px";
+    scale1.style.left = "-30px";
+    scale1.style.height = "30px";
+    scale1.style.width = "30px";
+    scale1.style.backgroundColor = "blue";
+
+    const scale2 = document.createElement("div");
+    scale2.id = "scale2";
+    scale2.style.position = "absolute";
+    scale2.style.top = "-30px";
+    scale2.style.right = "-30px";
+    scale2.style.height = "30px";
+    scale2.style.width = "30px";
+    scale2.style.backgroundColor = "blue";
+
+    const scale3 = document.createElement("div");
+    scale3.id = "scale3";
+    scale3.style.position = "absolute";
+    scale3.style.bottom = "-30px";
+    scale3.style.left = "-30px";
+    scale3.style.height = "30px";
+    scale3.style.width = "30px";
+    scale3.style.backgroundColor = "blue";
+
+    const scale4 = document.createElement("div");
+    scale4.id = "scale4";
+    scale4.style.position = "absolute";
+    scale4.style.bottom = "-30px";
+    scale4.style.right = "-30px";
+    scale4.style.height = "30px";
+    scale4.style.width = "30px";
+    scale4.style.backgroundColor = "blue";
+
+    focusContainer.appendChild(scale1);
+    focusContainer.appendChild(scale2);
+    focusContainer.appendChild(scale3);
+    focusContainer.appendChild(scale4);
+
+    let selectedScale = null;
+
     let focused_item = null;
+    scale1.onpointerdown = (e) => {
+      if (!focusContainer.checkVisibility()) {
+        return;
+      }
+    };
+    scale2.onpointerdown = (e) => {
+      if (!focusContainer.checkVisibility()) {
+        return;
+      }
+    };
+    scale3.onpointerdown = (e) => {
+      if (!focusContainer.checkVisibility()) {
+        return;
+      }
+    };
+    scale4.onpointerdown = (e) => {
+      if (!focusContainer.checkVisibility()) {
+        return;
+      }
+    };
     let grabbed_item = null;
     let focused_point_info = null;
     let contentAreaMatrix = new DOMMatrix();
-    let pointerDownEvents = [];
     function unfocus(e) {
       if (e.target !== focused_item) {
         if (focused_item) {
           focused_item.classList.remove("focused");
+          focusContainer.remove();
         }
         focused_item = null;
         grabbed_item = null;
@@ -101,17 +173,20 @@
         unfocus(e);
         const node = e.target.parentNode.removeChild(e.target);
         content_area.appendChild(node);
-        focused_item = e.target;
-        grabbed_item = focused_item;
-        focused_item.classList.add("focused");
-        grabbed_item.classList.add("grabbing");
+        if (focused_item !== e.target) {
+          focused_item = e.target;
+          grabbed_item = focused_item;
+          focused_item.classList.add("focused");
+          focusContainer.style.transform = focused_item.style.transform;
+          focusContainer.style.width = `${focused_item.width}px`;
+          focusContainer.style.height = `${focused_item.height}px`;
+          content_area.appendChild(focusContainer);
+        }
         let bbox = e.target.getBoundingClientRect();
         focused_point_info = { x: bbox.x, y: bbox.y, eventX: e.clientX, eventY: e.clientY };
       }
     }
-    function pointerDownHandler(e) {
-      pointerDownEvents.push(e);
-    }
+    function pointerDownHandler(e) {}
     function moveGrabbedItem(e) {
       if (focused_point_info === null || grabbed_item === null) {
         return;
@@ -121,55 +196,28 @@
       let { x, y, eventX, eventY } = focused_point_info;
       let diff_x = x - eventX;
       let diff_y = y - eventY;
+
+      // this is the scaleX; also scaleY must be the same
+      let content_area_scale = contentAreaMatrix.a;
+
       // converting the e.client[X|Y] values to
       // points on the scaled content_area DOM element
       // cartesian plane and dividing by the scale amount
       // to make sure movements are normalized to behave
       // as if there was no scaling
-
-      // this is the scaleX; also scaleY must be the same
-      let content_area_scale = contentAreaMatrix.a;
       grabbed_item.style.transform = `
         translate(
           ${(e.clientX - content_area_bbox.x + diff_x) / content_area_scale}px,
           ${(e.clientY - content_area_bbox.y + diff_y) / content_area_scale}px
         )
         `;
+      grabbed_item.classList.add("grabbing");
+      focusContainer.style.transform = focused_item.style.transform;
     }
     function pointerMoveHandler(e) {
       moveGrabbedItem(e);
-      // if (pointerDownEvents.length === 2) {
-      //   const index = pointerDownEvents.findIndex((evt) => evt.pointerId === e.pointerId);
-      //   pointerDownEvents[index] = e;
-      //   const diff = Math.hypot(
-      //     pointerDownEvents[0].clientX - pointerDownEvents[1].clientX,
-      //     pointerDownEvents[0].clientY - pointerDownEvents[1].clientY,
-      //   );
-      //   if (twoPointerZoomDiff > 0) {
-      //     if (twoPointerZoomDiff > diff) {
-      //       content_area_scale *= 1.1;
-      //     } else if (twoPointerZoomDiff < diff) {
-      //       content_area_scale *= 0.9;
-      //     }
-      //     const { x, y } = content_area.getBoundingClientRect();
-      //     const x_mid =
-      //       pointerDownEvents[0].clientX +
-      //       (pointerDownEvents[1].clientX - pointerDownEvents[0].clientX) / 2;
-      //     const y_mid =
-      //       pointerDownEvents[0].clientY +
-      //       (pointerDownEvents[1].clientY - pointerDownEvents[0].clientY) / 2;
-      //     const transformOrigin = `${x_mid - x}px ${y_mid - y}px`;
-      //     content_area.style.transformOrigin = transformOrigin;
-      //     content_area.style.transform = `scale(${content_area_scale})`;
-      //   }
-      // }
     }
     function pointerUpHandler(e) {
-      let pointerDownIndex = pointerDownEvents.findIndex((evt) => evt.pointerId === e.pointerId);
-      pointerDownEvents.splice(pointerDownIndex, 1);
-      if (pointerDownEvents.length < 2) {
-        twoPointerZoomDiff = -1;
-      }
       unfocus(e);
       focused_point_info = null;
       if (grabbed_item !== null) {
@@ -191,7 +239,6 @@
               img.classList.add("content-item");
               img.src = imageUrl;
               img.draggable = false;
-              const content_area = document.querySelector(".content-area");
               content_area.appendChild(img);
             });
           }
@@ -247,8 +294,33 @@
             let scale = Math.sign(e.deltaY) === 1 ? 0.97 : 1.03;
             const diff_x = e.clientX - (x + width / 2);
             const diff_y = e.clientY - (y + height / 2);
-            contentAreaMatrix.scaleSelf(scale, scale, scale, diff_x / contentAreaMatrix.a, diff_y / contentAreaMatrix.a);
+            contentAreaMatrix.scaleSelf(
+              scale,
+              scale,
+              scale,
+              diff_x / contentAreaMatrix.a,
+              diff_y / contentAreaMatrix.a,
+            );
             content_area.style.transform = contentAreaMatrix.toString();
+            scale1.style.width = `${30 / contentAreaMatrix.a}px`;
+            scale1.style.height = `${30 / contentAreaMatrix.a}px`;
+            scale1.style.left = `${-30 / contentAreaMatrix.a}px`;
+            scale1.style.top = `${-30 / contentAreaMatrix.a}px`;
+
+            scale2.style.width = `${30 / contentAreaMatrix.a}px`;
+            scale2.style.height = `${30 / contentAreaMatrix.a}px`;
+            scale2.style.right = `${-30 / contentAreaMatrix.a}px`;
+            scale2.style.top = `${-30 / contentAreaMatrix.a}px`;
+
+            scale3.style.width = `${30 / contentAreaMatrix.a}px`;
+            scale3.style.height = `${30 / contentAreaMatrix.a}px`;
+            scale3.style.left = `${-30 / contentAreaMatrix.a}px`;
+            scale3.style.bottom = `${-30 / contentAreaMatrix.a}px`;
+
+            scale4.style.width = `${30 / contentAreaMatrix.a}px`;
+            scale4.style.height = `${30 / contentAreaMatrix.a}px`;
+            scale4.style.right = `${-30 / contentAreaMatrix.a}px`;
+            scale4.style.bottom = `${-30 / contentAreaMatrix.a}px`;
           } else {
             // moving around event
             contentAreaMatrix.translateSelf(-e.deltaX, -e.deltaY);
