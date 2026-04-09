@@ -258,7 +258,10 @@
       const originY = grabbed_item_bbox.y + grabbed_item_bbox.height / 2;
       const tX = e.clientX - originX;
       const tY = e.clientY - originY;
-      matrix.translateSelf((tX - diff_x) / content_area_scale, (tY - diff_y) / content_area_scale);
+      matrix.translateSelf(
+        (tX - diff_x) / content_area_scale / matrix.a,
+        (tY - diff_y) / content_area_scale / matrix.d,
+      );
       grabbed_item.style.transform = matrix.toString();
       focusContainer.style.transform = matrix.toString();
     }
@@ -266,8 +269,8 @@
       if (selectedScale !== null) {
         const transform = getComputedStyle(focused_item).transform;
         const matrix = new DOMMatrix(transform);
+        const { x, y, width, height } = focused_item.getBoundingClientRect();
         if (selectedScale === scale1) {
-          const { x, y, width, height } = focused_item.getBoundingClientRect();
           const right = x + width;
           const bottom = y + height;
           const percentageX = Math.abs(e.clientX - right) / focused_item.naturalWidth;
@@ -281,11 +284,50 @@
             width / 2 / contentAreaMatrix.a / matrix.a,
             height / 2 / contentAreaMatrix.a / matrix.d,
           );
-          focused_item.style.transform = matrix.toString();
         } else if (selectedScale === scale2) {
+          const left = x
+          const bottom = y + height
+          const percentageX = Math.abs(e.clientX - left) / focused_item.naturalWidth;
+          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const percentageY = Math.abs(e.clientY - bottom) / focused_item.naturalHeight;
+          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          matrix.scaleSelf(
+            scaleX,
+            scaleY,
+            1,
+            -width / 2 / contentAreaMatrix.a / matrix.a,
+            height / 2 / contentAreaMatrix.a / matrix.d,
+          );
         } else if (selectedScale === scale3) {
+          const right = x + width
+          const top = y
+          const percentageX = Math.abs(e.clientX - right) / focused_item.naturalWidth;
+          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const percentageY = Math.abs(e.clientY - top) / focused_item.naturalHeight;
+          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          matrix.scaleSelf(
+            scaleX,
+            scaleY,
+            1,
+            width / 2 / contentAreaMatrix.a / matrix.a,
+            -height / 2 / contentAreaMatrix.a / matrix.d,
+          );
         } else if (selectedScale === scale4) {
+          const left = x
+          const top = y
+          const percentageX = Math.abs(e.clientX - left) / focused_item.naturalWidth;
+          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const percentageY = Math.abs(e.clientY - top) / focused_item.naturalHeight;
+          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          matrix.scaleSelf(
+            scaleX,
+            scaleY,
+            1,
+            -width / 2 / contentAreaMatrix.a / matrix.a,
+            -height / 2 / contentAreaMatrix.a / matrix.d,
+          );
         }
+        focused_item.style.transform = matrix.toString();
         focusContainer.style.transform = matrix.toString();
         removeScalingFromFocusControls();
       }
