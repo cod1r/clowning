@@ -146,7 +146,6 @@
     focusContainer.appendChild(scale4);
 
     let selectedScale = null;
-    let initial_scale_info = null;
 
     let focused_item = null;
 
@@ -155,28 +154,24 @@
         return;
       }
       selectedScale = scale1;
-      initial_scale_info = focused_item.getBoundingClientRect();
     };
     scale2.onpointerdown = (e) => {
       if (!focusContainer.checkVisibility()) {
         return;
       }
       selectedScale = scale2;
-      initial_scale_info = focused_item.getBoundingClientRect();
     };
     scale3.onpointerdown = (e) => {
       if (!focusContainer.checkVisibility()) {
         return;
       }
       selectedScale = scale3;
-      initial_scale_info = focused_item.getBoundingClientRect();
     };
     scale4.onpointerdown = (e) => {
       if (!focusContainer.checkVisibility()) {
         return;
       }
       selectedScale = scale4;
-      initial_scale_info = focused_item.getBoundingClientRect();
     };
 
     let grabbed_item = null;
@@ -190,9 +185,31 @@
           focused_item = null;
           grabbed_item = null;
           focused_point_info = null;
-          initial_scale_info = null;
         }
       }
+    }
+    function removeScalingFromFocusControls() {
+      const transform = getComputedStyle(focusContainer).transform;
+      const matrix = new DOMMatrix(transform);
+      scale1.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
+      scale1.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
+      scale1.style.left = `${-30 / contentAreaMatrix.a / matrix.a}px`;
+      scale1.style.top = `${-30 / contentAreaMatrix.a / matrix.d}px`;
+
+      scale2.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
+      scale2.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
+      scale2.style.right = `${-30 / contentAreaMatrix.a / matrix.a}px`;
+      scale2.style.top = `${-30 / contentAreaMatrix.a / matrix.d}px`;
+
+      scale3.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
+      scale3.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
+      scale3.style.left = `${-30 / contentAreaMatrix.a / matrix.a}px`;
+      scale3.style.bottom = `${-30 / contentAreaMatrix.a / matrix.d}px`;
+
+      scale4.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
+      scale4.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
+      scale4.style.right = `${-30 / contentAreaMatrix.a / matrix.a}px`;
+      scale4.style.bottom = `${-30 / contentAreaMatrix.a / matrix.d}px`;
     }
     function setFocusedItem(e) {
       if (e.target.classList.contains("content-item")) {
@@ -203,7 +220,6 @@
           focused_item = e.target;
           grabbed_item = focused_item;
           focused_item.classList.add("focused");
-          focusContainer.style.transform = focused_item.style.transform;
           focusContainer.style.width = `${focused_item.width}px`;
           focusContainer.style.height = `${focused_item.height}px`;
           content_area.appendChild(focusContainer);
@@ -211,6 +227,10 @@
         grabbed_item.classList.add("grabbing");
         let bbox = e.target.getBoundingClientRect();
         focused_point_info = { x: bbox.x, y: bbox.y, eventX: e.clientX, eventY: e.clientY };
+        const transform = getComputedStyle(focused_item).transform;
+        const matrix = new DOMMatrix(transform);
+        focusContainer.style.transform = matrix.toString();
+        removeScalingFromFocusControls();
       }
     }
     function pointerDownHandler(e) {
@@ -223,54 +243,51 @@
       if (focused_point_info === null || grabbed_item === null) {
         return;
       }
-      // need content_area_bbox to be used as an origin point
-      let content_area_bbox = content_area.getBoundingClientRect();
+
+      let grabbed_item_bbox = grabbed_item.getBoundingClientRect();
       let { x, y, eventX, eventY } = focused_point_info;
-      let diff_x = x - eventX;
-      let diff_y = y - eventY;
+      let diff_x = eventX - (x + grabbed_item_bbox.width / 2);
+      let diff_y = eventY - (y + grabbed_item_bbox.height / 2);
 
       // this is the scaleX; also scaleY must be the same
       let content_area_scale = contentAreaMatrix.a;
 
-      // converting the e.client[X|Y] values to
-      // points on the scaled content_area DOM element
-      // cartesian plane and dividing by the scale amount
-      // to make sure movements are normalized to behave
-      // as if there was no scaling
-      grabbed_item.style.transform = `
-        translate(
-          ${(e.clientX - content_area_bbox.x + diff_x) / content_area_scale}px,
-          ${(e.clientY - content_area_bbox.y + diff_y) / content_area_scale}px
-        )
-        `;
-      focusContainer.style.transform = focused_item.style.transform;
+      const transform = getComputedStyle(grabbed_item).transform;
+      const matrix = new DOMMatrix(transform);
+      const originX = grabbed_item_bbox.x + grabbed_item_bbox.width / 2;
+      const originY = grabbed_item_bbox.y + grabbed_item_bbox.height / 2;
+      const tX = e.clientX - originX;
+      const tY = e.clientY - originY;
+      matrix.translateSelf((tX - diff_x) / content_area_scale, (tY - diff_y) / content_area_scale);
+      grabbed_item.style.transform = matrix.toString();
+      focusContainer.style.transform = matrix.toString();
     }
     function moveFocusUIControl(e) {
       if (selectedScale !== null) {
+        const transform = getComputedStyle(focused_item).transform;
+        const matrix = new DOMMatrix(transform);
         if (selectedScale === scale1) {
           const { x, y, width, height } = focused_item.getBoundingClientRect();
           const right = x + width;
           const bottom = y + height;
-          const { x: scale4x, y: scale4y } = scale4.getBoundingClientRect();
-          const transform = getComputedStyle(focused_item).transform;
-          const matrix = new DOMMatrix(transform);
-          const percentageX = Math.abs(e.clientX - right) / initial_scale_info.width;
-          const scaleX = percentageX / matrix.a;
-          const percentageY = Math.abs(e.clientY - bottom) / initial_scale_info.height;
-          const scaleY = percentageY / matrix.d;
-          const actualScaleFactor = contentAreaMatrix.a * matrix.a
+          const percentageX = Math.abs(e.clientX - right) / focused_item.naturalWidth;
+          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const percentageY = Math.abs(e.clientY - bottom) / focused_item.naturalHeight;
+          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
             scaleY,
             1,
-            (scale4x - (x + width / 2)) / actualScaleFactor,
-            (scale4y - (y + height / 2)) / actualScaleFactor,
+            width / 2 / contentAreaMatrix.a / matrix.a,
+            height / 2 / contentAreaMatrix.a / matrix.d,
           );
           focused_item.style.transform = matrix.toString();
         } else if (selectedScale === scale2) {
         } else if (selectedScale === scale3) {
         } else if (selectedScale === scale4) {
         }
+        focusContainer.style.transform = matrix.toString();
+        removeScalingFromFocusControls();
       }
     }
     function pointerMoveHandler(e) {
@@ -369,25 +386,7 @@
               diff_y / contentAreaMatrix.a,
             );
             content_area.style.transform = contentAreaMatrix.toString();
-            scale1.style.width = `${30 / contentAreaMatrix.a}px`;
-            scale1.style.height = `${30 / contentAreaMatrix.a}px`;
-            scale1.style.left = `${-30 / contentAreaMatrix.a}px`;
-            scale1.style.top = `${-30 / contentAreaMatrix.a}px`;
-
-            scale2.style.width = `${30 / contentAreaMatrix.a}px`;
-            scale2.style.height = `${30 / contentAreaMatrix.a}px`;
-            scale2.style.right = `${-30 / contentAreaMatrix.a}px`;
-            scale2.style.top = `${-30 / contentAreaMatrix.a}px`;
-
-            scale3.style.width = `${30 / contentAreaMatrix.a}px`;
-            scale3.style.height = `${30 / contentAreaMatrix.a}px`;
-            scale3.style.left = `${-30 / contentAreaMatrix.a}px`;
-            scale3.style.bottom = `${-30 / contentAreaMatrix.a}px`;
-
-            scale4.style.width = `${30 / contentAreaMatrix.a}px`;
-            scale4.style.height = `${30 / contentAreaMatrix.a}px`;
-            scale4.style.right = `${-30 / contentAreaMatrix.a}px`;
-            scale4.style.bottom = `${-30 / contentAreaMatrix.a}px`;
+            removeScalingFromFocusControls();
           } else {
             // moving around event
             contentAreaMatrix.translateSelf(-e.deltaX, -e.deltaY);
