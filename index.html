@@ -39,7 +39,6 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      outline: 2px solid black;
     }
     .toolbar {
       position: fixed;
@@ -54,7 +53,7 @@
       pointer-events: all;
     }
     .content-area {
-      position: relative;
+      position: absolute;
       width: 100%;
       height: 100%;
     }
@@ -64,10 +63,9 @@
     }
     .focused {
       border: none;
-      outline: 3px solid blue;
     }
     .grabbing {
-      cursor: grabbing;
+      cursor: grabbing !important;
     }
     .content-item-container {
       height: min-content;
@@ -79,6 +77,8 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       cursor: grab;
+      position: absolute;
+      background-color: blue;
     }
   </style>
   <body>
@@ -92,156 +92,170 @@
     </div>
   </body>
   <script>
+    const root = document.querySelector(".root");
     const content_area = document.querySelector(".content-area");
-    const focusContainer = document.createElement("div");
-    const contents = [];
-    focusContainer.id = "focus_container";
-    focusContainer.style.pointerEvents = "none";
-    focusContainer.style.position = "absolute";
 
     const scale1 = document.createElement("div");
     scale1.id = "scale1";
-    scale1.style.position = "absolute";
-    scale1.style.top = "-30px";
-    scale1.style.left = "-30px";
     scale1.style.height = "30px";
     scale1.style.width = "30px";
-    scale1.style.backgroundColor = "blue";
 
     const scale2 = document.createElement("div");
     scale2.id = "scale2";
-    scale2.style.position = "absolute";
-    scale2.style.top = "-30px";
-    scale2.style.right = "-30px";
     scale2.style.height = "30px";
     scale2.style.width = "30px";
-    scale2.style.backgroundColor = "blue";
 
     const scale3 = document.createElement("div");
     scale3.id = "scale3";
-    scale3.style.position = "absolute";
-    scale3.style.bottom = "-30px";
-    scale3.style.left = "-30px";
     scale3.style.height = "30px";
     scale3.style.width = "30px";
-    scale3.style.backgroundColor = "blue";
 
     const scale4 = document.createElement("div");
     scale4.id = "scale4";
-    scale4.style.position = "absolute";
-    scale4.style.bottom = "-30px";
-    scale4.style.right = "-30px";
     scale4.style.height = "30px";
     scale4.style.width = "30px";
-    scale4.style.backgroundColor = "blue";
+
+    const horizontalRadius = 30;
+    const verticalRadius = 30;
+    const cssString = `${horizontalRadius}px ${verticalRadius}px`;
+    scale1.style.borderTopLeftRadius = cssString;
+    scale1.style.borderTopRightRadius = cssString;
+    scale1.style.borderBottomLeftRadius = cssString;
+
+    scale2.style.borderTopLeftRadius = cssString;
+    scale2.style.borderTopRightRadius = cssString;
+    scale2.style.borderBottomRightRadius = cssString;
+
+    scale3.style.borderTopLeftRadius = cssString;
+    scale3.style.borderBottomLeftRadius = cssString;
+    scale3.style.borderBottomRightRadius = cssString;
+
+    scale4.style.borderTopRightRadius = cssString;
+    scale4.style.borderBottomLeftRadius = cssString;
+    scale4.style.borderBottomRightRadius = cssString;
+
+    let rotateFocusControl = document.createElement("div");
+    rotateFocusControl.style.width = "25px";
+    rotateFocusControl.style.height = "25px";
+    rotateFocusControl.style.borderRadius = "30px 30px";
+
+    let topFocusBorder = document.createElement("div");
+    topFocusBorder.style.height = "2px";
+    let leftFocusBorder = document.createElement("div");
+    leftFocusBorder.style.width = "2px";
+    let rightFocusBorder = document.createElement("div");
+    rightFocusBorder.style.width = "2px";
+    let bottomFocusBorder = document.createElement("div");
+    bottomFocusBorder.style.height = "2px";
 
     scale1.classList.add("focus-ui-controls");
     scale2.classList.add("focus-ui-controls");
     scale3.classList.add("focus-ui-controls");
     scale4.classList.add("focus-ui-controls");
+    rotateFocusControl.classList.add("focus-ui-controls");
+    topFocusBorder.classList.add("focus-ui-controls");
+    leftFocusBorder.classList.add("focus-ui-controls");
+    rightFocusBorder.classList.add("focus-ui-controls");
+    bottomFocusBorder.classList.add("focus-ui-controls");
 
-    scale1.style.borderTopLeftRadius = "30px";
-    scale1.style.borderTopRightRadius = "30px";
-    scale1.style.borderBottomLeftRadius = "30px";
-
-    focusContainer.appendChild(scale1);
-    focusContainer.appendChild(scale2);
-    focusContainer.appendChild(scale3);
-    focusContainer.appendChild(scale4);
-
-    let selectedScale = null;
-    let diffFromCornerSelectedScale = null;
+    let selectedFocusUIControl = null;
+    let diffFromCornerSelectedControl = null;
 
     let focused_item = null;
 
     scale1.onpointerdown = (e) => {
-      if (!focusContainer.checkVisibility()) {
+      if (focused_item === null) {
         return;
       }
-      selectedScale = scale1;
+      selectedFocusUIControl = scale1;
       const { x, y, width, height } = scale1.getBoundingClientRect();
-      diffFromCornerSelectedScale = [e.clientX - (x + width), e.clientY - (y + height)];
+      diffFromCornerSelectedControl = [e.clientX - (x + width), e.clientY - (y + height)];
     };
     scale2.onpointerdown = (e) => {
-      if (!focusContainer.checkVisibility()) {
+      if (focused_item === null) {
         return;
       }
-      selectedScale = scale2;
+      selectedFocusUIControl = scale2;
       const { x, y, width, height } = scale2.getBoundingClientRect();
-      diffFromCornerSelectedScale = [e.clientX - x, e.clientY - (y + height)];
+      diffFromCornerSelectedControl = [e.clientX - x, e.clientY - (y + height)];
     };
     scale3.onpointerdown = (e) => {
-      if (!focusContainer.checkVisibility()) {
+      if (focused_item === null) {
         return;
       }
-      selectedScale = scale3;
+      selectedFocusUIControl = scale3;
       const { x, y, width, height } = scale3.getBoundingClientRect();
-      diffFromCornerSelectedScale = [e.clientX - (x + width), e.clientY - y];
+      diffFromCornerSelectedControl = [e.clientX - (x + width), e.clientY - y];
     };
     scale4.onpointerdown = (e) => {
-      if (!focusContainer.checkVisibility()) {
+      if (focused_item === null) {
         return;
       }
-      selectedScale = scale4;
+      selectedFocusUIControl = scale4;
       const { x, y, width, height } = scale4.getBoundingClientRect();
-      diffFromCornerSelectedScale = [e.clientX - x, e.clientY - y];
+      diffFromCornerSelectedControl = [e.clientX - x, e.clientY - y];
+    };
+    rotateFocusControl.onpointerdown = (e) => {
+      if (focused_item === null) {
+        return;
+      }
+      selectedFocusUIControl = rotateFocusControl;
     };
 
     let grabbed_item = null;
     let focused_point_info = null;
     let contentAreaMatrix = new DOMMatrix();
+    function addFocusControls() {
+      root.appendChild(scale1);
+      root.appendChild(scale2);
+      root.appendChild(scale3);
+      root.appendChild(scale4);
+      root.appendChild(topFocusBorder);
+      root.appendChild(bottomFocusBorder);
+      root.appendChild(leftFocusBorder);
+      root.appendChild(rightFocusBorder);
+    }
+    function removeFocusControls() {
+      root.removeChild(scale1);
+      root.removeChild(scale2);
+      root.removeChild(scale3);
+      root.removeChild(scale4);
+      root.removeChild(topFocusBorder);
+      root.removeChild(bottomFocusBorder);
+      root.removeChild(leftFocusBorder);
+      root.removeChild(rightFocusBorder);
+    }
     function unfocus(e) {
       if (e.target !== focused_item) {
-        if (focused_item && selectedScale === null) {
+        if (focused_item && selectedFocusUIControl === null) {
           focused_item.classList.remove("focused");
-          focusContainer.remove();
           focused_item = null;
           grabbed_item = null;
-          focused_point_info = null;
+          removeFocusControls();
         }
+        selectedFocusUIControl = null;
+        diffFromCornerSelectedControl = null;
       }
+      focused_point_info = null;
     }
-    function removeScalingFromFocusControls() {
-      const transform = getComputedStyle(focusContainer).transform;
-      const matrix = new DOMMatrix(transform);
-      scale1.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
-      scale1.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
-      scale1.style.left = `${-30 / contentAreaMatrix.a / matrix.a}px`;
-      scale1.style.top = `${-30 / contentAreaMatrix.a / matrix.d}px`;
+    function alignFocusControls() {
+      if (focused_item !== null) {
+        const { x, y, width, height } = focused_item.getBoundingClientRect();
+        const content_area_bbox = content_area.getBoundingClientRect();
+        scale1.style.transform = `translate(${x - 30}px, ${y - 30}px)`;
+        scale2.style.transform = `translate(${x + width}px, ${y - 30}px)`;
+        scale3.style.transform = `translate(${x - 30}px, ${y + height}px)`;
+        scale4.style.transform = `translate(${x + width}px, ${y + height}px)`;
 
-      scale2.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
-      scale2.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
-      scale2.style.right = `${-30 / contentAreaMatrix.a / matrix.a}px`;
-      scale2.style.top = `${-30 / contentAreaMatrix.a / matrix.d}px`;
-
-      scale3.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
-      scale3.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
-      scale3.style.left = `${-30 / contentAreaMatrix.a / matrix.a}px`;
-      scale3.style.bottom = `${-30 / contentAreaMatrix.a / matrix.d}px`;
-
-      scale4.style.width = `${30 / contentAreaMatrix.a / matrix.a}px`;
-      scale4.style.height = `${30 / contentAreaMatrix.a / matrix.d}px`;
-      scale4.style.right = `${-30 / contentAreaMatrix.a / matrix.a}px`;
-      scale4.style.bottom = `${-30 / contentAreaMatrix.a / matrix.d}px`;
-
-      const horizontalRadius = 30 / contentAreaMatrix.a / matrix.a;
-      const verticalRadius = 30 / contentAreaMatrix.a / matrix.d;
-      const cssString = `${horizontalRadius}px ${verticalRadius}px`;
-      scale1.style.borderTopLeftRadius = cssString;
-      scale1.style.borderTopRightRadius = cssString;
-      scale1.style.borderBottomLeftRadius = cssString;
-
-      scale2.style.borderTopLeftRadius = cssString;
-      scale2.style.borderTopRightRadius = cssString;
-      scale2.style.borderBottomRightRadius = cssString;
-
-      scale3.style.borderTopLeftRadius = cssString;
-      scale3.style.borderBottomLeftRadius = cssString;
-      scale3.style.borderBottomRightRadius = cssString;
-
-      scale4.style.borderTopRightRadius = cssString;
-      scale4.style.borderBottomLeftRadius = cssString;
-      scale4.style.borderBottomRightRadius = cssString;
+        topFocusBorder.style.width = `${width}px`;
+        topFocusBorder.style.transform = `translate(${x}px, ${y - 2}px)`;
+        bottomFocusBorder.style.width = `${width}px`;
+        bottomFocusBorder.style.transform = `translate(${x}px, ${y + height}px)`;
+        leftFocusBorder.style.height = `${height}px`;
+        leftFocusBorder.style.transform = `translate(${x - 2}px, ${y}px)`;
+        rightFocusBorder.style.height = `${height}px`;
+        rightFocusBorder.style.transform = `translate(${x + width}px, ${y}px)`;
+      }
     }
     function setFocusedItem(e) {
       if (e.target.classList.contains("content-item")) {
@@ -252,23 +266,18 @@
           focused_item = e.target;
           grabbed_item = focused_item;
           focused_item.classList.add("focused");
-          focusContainer.style.width = `${focused_item.width}px`;
-          focusContainer.style.height = `${focused_item.height}px`;
-          content_area.appendChild(focusContainer);
+          addFocusControls();
         }
+        alignFocusControls();
         grabbed_item.classList.add("grabbing");
-        let bbox = e.target.getBoundingClientRect();
+        const bbox = grabbed_item.getBoundingClientRect();
         focused_point_info = { x: bbox.x, y: bbox.y, eventX: e.clientX, eventY: e.clientY };
-        const transform = getComputedStyle(focused_item).transform;
-        const matrix = new DOMMatrix(transform);
-        focusContainer.style.transform = matrix.toString();
-        removeScalingFromFocusControls();
       }
     }
     function pointerDownHandler(e) {
       setFocusedItem(e);
-      if (e.target === selectedScale) {
-        selectedScale.classList.add("grabbing");
+      if (e.target === selectedFocusUIControl) {
+        selectedFocusUIControl.classList.add("grabbing");
       }
     }
     function moveGrabbedItem(e) {
@@ -295,22 +304,22 @@
         (tY - diff_y) / content_area_scale / matrix.d,
       );
       grabbed_item.style.transform = matrix.toString();
-      focusContainer.style.transform = matrix.toString();
+      alignFocusControls();
     }
     function moveFocusUIControl(e) {
-      if (selectedScale !== null) {
+      if (selectedFocusUIControl !== null) {
         const transform = getComputedStyle(focused_item).transform;
         const matrix = new DOMMatrix(transform);
         const { x, y, width, height } = focused_item.getBoundingClientRect();
-        if (selectedScale === scale1) {
+        if (selectedFocusUIControl === scale1) {
           const right = x + width;
           const bottom = y + height;
           const percentageX =
-            Math.abs(e.clientX - diffFromCornerSelectedScale[0] - right) /
+            Math.max(10, Math.abs(e.clientX - diffFromCornerSelectedControl[0] - right)) /
             focused_item.naturalWidth;
           const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
           const percentageY =
-            Math.abs(e.clientY - diffFromCornerSelectedScale[1] - bottom) /
+            Math.max(10, Math.abs(e.clientY - diffFromCornerSelectedControl[1] - bottom)) /
             focused_item.naturalHeight;
           const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
           matrix.scaleSelf(
@@ -320,14 +329,15 @@
             width / 2 / contentAreaMatrix.a / matrix.a,
             height / 2 / contentAreaMatrix.a / matrix.d,
           );
-        } else if (selectedScale === scale2) {
+        } else if (selectedFocusUIControl === scale2) {
           const left = x;
           const bottom = y + height;
           const percentageX =
-            Math.abs(e.clientX - diffFromCornerSelectedScale[0] - left) / focused_item.naturalWidth;
+            Math.abs(e.clientX - diffFromCornerSelectedControl[0] - left) /
+            focused_item.naturalWidth;
           const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
           const percentageY =
-            Math.abs(e.clientY - diffFromCornerSelectedScale[1] - bottom) /
+            Math.abs(e.clientY - diffFromCornerSelectedControl[1] - bottom) /
             focused_item.naturalHeight;
           const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
           matrix.scaleSelf(
@@ -337,15 +347,16 @@
             -width / 2 / contentAreaMatrix.a / matrix.a,
             height / 2 / contentAreaMatrix.a / matrix.d,
           );
-        } else if (selectedScale === scale3) {
+        } else if (selectedFocusUIControl === scale3) {
           const right = x + width;
           const top = y;
           const percentageX =
-            Math.abs(e.clientX - diffFromCornerSelectedScale[0] - right) /
+            Math.abs(e.clientX - diffFromCornerSelectedControl[0] - right) /
             focused_item.naturalWidth;
           const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
           const percentageY =
-            Math.abs(e.clientY - diffFromCornerSelectedScale[1] - top) / focused_item.naturalHeight;
+            Math.abs(e.clientY - diffFromCornerSelectedControl[1] - top) /
+            focused_item.naturalHeight;
           const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
@@ -354,14 +365,16 @@
             width / 2 / contentAreaMatrix.a / matrix.a,
             -height / 2 / contentAreaMatrix.a / matrix.d,
           );
-        } else if (selectedScale === scale4) {
+        } else if (selectedFocusUIControl === scale4) {
           const left = x;
           const top = y;
           const percentageX =
-            Math.abs(e.clientX - diffFromCornerSelectedScale[0] - left) / focused_item.naturalWidth;
+            Math.abs(e.clientX - diffFromCornerSelectedControl[0] - left) /
+            focused_item.naturalWidth;
           const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
           const percentageY =
-            Math.abs(e.clientY - diffFromCornerSelectedScale[1] - top) / focused_item.naturalHeight;
+            Math.abs(e.clientY - diffFromCornerSelectedControl[1] - top) /
+            focused_item.naturalHeight;
           const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
@@ -370,10 +383,14 @@
             -width / 2 / contentAreaMatrix.a / matrix.a,
             -height / 2 / contentAreaMatrix.a / matrix.d,
           );
+        } else if (selectedFocusUIControl === rotateFocusControl) {
+          const rotateFocusControlBBox = selectedFocusUIControl.getBoundingClientRect();
+          const diffx = e.clientX - (x + width / 2);
+          const diffy = e.clientY - (y + height / 2);
+          matrix.rotateAxisAngleSelf(0, 0, 1, 1);
         }
         focused_item.style.transform = matrix.toString();
-        focusContainer.style.transform = matrix.toString();
-        removeScalingFromFocusControls();
+        alignFocusControls();
       }
     }
     function pointerMoveHandler(e) {
@@ -381,16 +398,13 @@
       moveGrabbedItem(e);
     }
     function pointerUpHandler(e) {
-      unfocus(e);
-      selectedScale = null;
-      diffFromCornerSelectedScale = null;
-      focused_point_info = null;
       if (grabbed_item !== null) {
         grabbed_item.classList.remove("grabbing");
       }
-      if (selectedScale !== null) {
-        selectedScale.classList.remove("grabbing");
+      if (selectedFocusUIControl !== null) {
+        selectedFocusUIControl.classList.remove("grabbing");
       }
+      unfocus(e);
     }
     function getContentClipboard() {
       navigator.clipboard.read().then((items) => {
@@ -472,13 +486,12 @@
               diff_x / contentAreaMatrix.a,
               diff_y / contentAreaMatrix.a,
             );
-            content_area.style.transform = contentAreaMatrix.toString();
-            removeScalingFromFocusControls();
           } else {
             // moving around event
             contentAreaMatrix.translateSelf(-e.deltaX, -e.deltaY);
-            content_area.style.transform = contentAreaMatrix.toString();
           }
+          content_area.style.transform = contentAreaMatrix.toString();
+          alignFocusControls();
         }
       },
       { passive: false },
