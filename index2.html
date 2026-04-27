@@ -1,0 +1,25 @@
+<!doctype html>
+<head>
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+</head>
+<html>
+  <body>
+    <div style="width: 25px; height: 25px; background-color: red"></div>
+  </body>
+  <script>
+    const d = document.querySelector("div");
+    const matrix = new DOMMatrix();
+    matrix.translateSelf(10, 10);
+    matrix.rotateSelf(20);
+
+    d.style.transform = matrix.toString();
+
+    const { x, y, width, height, bottom } = d.getBoundingClientRect();
+    console.log(x, y, width, height, bottom);
+  </script>
+</html>
