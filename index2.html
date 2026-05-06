@@ -15,11 +15,11 @@
     const d = document.querySelector("div");
     const matrix = new DOMMatrix();
     matrix.translateSelf(10, 10);
-    matrix.rotateSelf(20);
+    matrix.rotateSelf(1);
 
     d.style.transform = matrix.toString();
 
     const { x, y, width, height, bottom } = d.getBoundingClientRect();
-    console.log(x, y, width, height, bottom);
+    console.log(-Math.atan(matrix.b / matrix.c) * 180 / Math.PI, matrix.b, matrix.c);
   </script>
 </html>
