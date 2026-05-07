@@ -14,19 +14,18 @@
   </body>
   <script>
     const d = document.querySelector("div");
-    const i = document.querySelector("input[type='range']")
+    const i = document.querySelector("input[type='range']");
     const matrix = new DOMMatrix();
-    matrix.translateSelf(10, 10)
-    d.style.transform = matrix.toString()
-    let current_rotation = 0
+    matrix.translateSelf(10, 10);
+    d.style.transform = matrix.toString();
+    let current_rotation = 0;
     i.oninput = (e) => {
-      matrix.rotateSelf((+e.target.value - current_rotation) * 180 / Math.PI)
+      matrix.rotateSelf(((+e.target.value - current_rotation) * 180) / Math.PI);
       //matrix.a = 1
       //matrix.d = 1
-      current_rotation = +e.target.value
-      d.style.transform = matrix.toString()
-      console.log(current_rotation * 180 / Math.PI)
-    }
-
+      current_rotation = +e.target.value;
+      d.style.transform = matrix.toString();
+      console.log((current_rotation * 180) / Math.PI);
+    };
   </script>
 </html>
