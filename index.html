@@ -312,6 +312,7 @@
           const yCenter = focus_control_bbox.y + focus_control_bbox.height / 2;
           const matrix = new DOMMatrix(getComputedStyle(focus_control).transform);
 
+          // maybe i need to use the focus items own rotation instead of the focusItemRotation...?
           const xPos = Math.cos(focusItemRotation + angle_offset) * length + x + width / 2;
           const yPos = Math.sin(focusItemRotation + angle_offset) * length + y + height / 2;
           const xDiff = xPos - xCenter;
@@ -343,7 +344,10 @@
         alignFocusControls();
         grabbed_item.classList.add("grabbing");
         const bbox = grabbed_item.getBoundingClientRect();
-        focused_point_info = { x: bbox.x, y: bbox.y, eventX: e.clientX, eventY: e.clientY };
+        focused_point_info = {
+          diff_x_from_center: e.clientX - (bbox.x + bbox.width / 2),
+          diff_y_from_center: e.clientY - (bbox.y + bbox.height / 2)
+        };
       }
     }
     function pointerDownHandler(e) {
@@ -358,9 +362,7 @@
       }
 
       let grabbed_item_bbox = grabbed_item.getBoundingClientRect();
-      let { x, y, eventX, eventY } = focused_point_info;
-      let diff_x = eventX - (x + grabbed_item_bbox.width / 2);
-      let diff_y = eventY - (y + grabbed_item_bbox.height / 2);
+      let { diff_x_from_center, diff_y_from_center } = focused_point_info;
 
       // this is the scaleX; also scaleY must be the same
       let content_area_scale = contentAreaMatrix.a;
@@ -369,13 +371,35 @@
       const matrix = new DOMMatrix(transform);
       const originX = grabbed_item_bbox.x + grabbed_item_bbox.width / 2;
       const originY = grabbed_item_bbox.y + grabbed_item_bbox.height / 2;
-      const tX = e.clientX - originX;
-      const tY = e.clientY - originY;
+      const tX = e.clientX - originX - diff_x_from_center;
+      const tY = e.clientY - originY - diff_y_from_center;
 
-      const translateXAmt = (tX - diff_x) / content_area_scale / matrix.a;
-      const translateYAmt = (tY - diff_y) / content_area_scale / matrix.d;
+      /*
+      the reason scaleX and scaleY is calculated like this below
+      is because x and y are calculated like:
+      x = ax + cy + tx
+      y = bx + dy + ty
+      due to the matrix multiplication.
+
+      if I focus only on the basis vectors (x axis and y axis),
+      (1, 0) and (0, 1), and plug those values into the x and y equations
+
+      a(1) + c(0) + 0 = a
+      b(1) + d(0) + 0 = b
+
+      and
+
+      a(0) + c(1) + 0 = c
+      b(0) + d(1) + 0 = d
+
+      if (1, 0) is plugged into the equations, a and b are the only parameters affecting the x axis (scaling of the x)
+      if (0, 1) is plugged into the equations, c and d are the only parameters affecting the y axis (scaling of the y)
+      */
+      const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
+      const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
+      const translateXAmt = tX / content_area_scale / scaleX;
+      const translateYAmt = tY / content_area_scale / scaleY;
       const hypot = Math.hypot(translateXAmt, translateYAmt);
-      // because rotation on the web is clockwise, angles are going to have flipped signs
       const angle = Math.acos(translateXAmt / hypot) * (translateYAmt === 0 ? 1 : Math.sign(translateYAmt));
       const angle_between = angle - focusItemRotation;
       const tx_amt = Math.cos(angle_between) * hypot;
@@ -390,6 +414,8 @@
       if (selectedFocusUIControl !== null) {
         const transform = getComputedStyle(focused_item).transform;
         const matrix = new DOMMatrix(transform);
+        const scaleXOfFocusElement = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
+        const scaleYOfFocusElement = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
         const { x, y, width, height } = focused_item.getBoundingClientRect();
         if (selectedFocusUIControl === scale1) {
           const right = x + width;
@@ -397,17 +423,17 @@
           const percentageX =
             Math.max(10, Math.abs(e.clientX - diffFromCornerSelectedControl[0] - right)) /
             focused_item.naturalWidth;
-          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const scaleX = percentageX / scaleXOfFocusElement / contentAreaMatrix.a;
           const percentageY =
             Math.max(10, Math.abs(e.clientY - diffFromCornerSelectedControl[1] - bottom)) /
             focused_item.naturalHeight;
-          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          const scaleY = percentageY / scaleYOfFocusElement / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
             scaleY,
             1,
-            width / 2 / contentAreaMatrix.a / matrix.a,
-            height / 2 / contentAreaMatrix.a / matrix.d,
+            width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === scale2) {
           const left = x;
@@ -415,17 +441,17 @@
           const percentageX =
             Math.abs(e.clientX - diffFromCornerSelectedControl[0] - left) /
             focused_item.naturalWidth;
-          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const scaleX = percentageX / scaleXOfFocusElement / contentAreaMatrix.a;
           const percentageY =
             Math.abs(e.clientY - diffFromCornerSelectedControl[1] - bottom) /
             focused_item.naturalHeight;
-          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          const scaleY = percentageY / scaleYOfFocusElement / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
             scaleY,
             1,
-            -width / 2 / contentAreaMatrix.a / matrix.a,
-            height / 2 / contentAreaMatrix.a / matrix.d,
+            -width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === scale3) {
           const right = x + width;
@@ -433,17 +459,17 @@
           const percentageX =
             Math.abs(e.clientX - diffFromCornerSelectedControl[0] - right) /
             focused_item.naturalWidth;
-          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const scaleX = percentageX / scaleXOfFocusElement / contentAreaMatrix.a;
           const percentageY =
             Math.abs(e.clientY - diffFromCornerSelectedControl[1] - top) /
             focused_item.naturalHeight;
-          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          const scaleY = percentageY / scaleYOfFocusElement / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
             scaleY,
             1,
-            width / 2 / contentAreaMatrix.a / matrix.a,
-            -height / 2 / contentAreaMatrix.a / matrix.d,
+            width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            -height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === scale4) {
           const left = x;
@@ -451,17 +477,17 @@
           const percentageX =
             Math.abs(e.clientX - diffFromCornerSelectedControl[0] - left) /
             focused_item.naturalWidth;
-          const scaleX = percentageX / matrix.a / contentAreaMatrix.a;
+          const scaleX = percentageX / scaleXOfFocusElement / contentAreaMatrix.a;
           const percentageY =
             Math.abs(e.clientY - diffFromCornerSelectedControl[1] - top) /
             focused_item.naturalHeight;
-          const scaleY = percentageY / matrix.d / contentAreaMatrix.a;
+          const scaleY = percentageY / scaleYOfFocusElement / contentAreaMatrix.a;
           matrix.scaleSelf(
             scaleX,
             scaleY,
             1,
-            -width / 2 / contentAreaMatrix.a / matrix.a,
-            -height / 2 / contentAreaMatrix.a / matrix.d,
+            -width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            -height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === rotateFocusControl) {
           const diffx = e.clientX - (x + width / 2);
@@ -519,7 +545,7 @@
           focusItemRotation = angle_of_mouse + Math.PI / 2;
         }
         focused_item.style.transform = matrix.toString();
-        //alignFocusControls();
+        alignFocusControls();
       }
     }
     function pointerMoveHandler(e) {

@@ -9,17 +9,24 @@
 </head>
 <html>
   <body>
-    <div style="width: 25px; height: 25px; background-color: red"></div>
+    <div style="width: 50px; height: 50px; background-color: red"></div>
+    <input type="range" min="0" max="6.28" step="0.01" value="0" />
   </body>
   <script>
     const d = document.querySelector("div");
+    const i = document.querySelector("input[type='range']")
     const matrix = new DOMMatrix();
-    matrix.translateSelf(10, 10);
-    matrix.rotateSelf(1);
+    matrix.translateSelf(10, 10)
+    d.style.transform = matrix.toString()
+    let current_rotation = 0
+    i.oninput = (e) => {
+      matrix.rotateSelf((+e.target.value - current_rotation) * 180 / Math.PI)
+      //matrix.a = 1
+      //matrix.d = 1
+      current_rotation = +e.target.value
+      d.style.transform = matrix.toString()
+      console.log(current_rotation * 180 / Math.PI)
+    }
 
-    d.style.transform = matrix.toString();
-
-    const { x, y, width, height, bottom } = d.getBoundingClientRect();
-    console.log(-Math.atan(matrix.b / matrix.c) * 180 / Math.PI, matrix.b, matrix.c);
   </script>
 </html>
