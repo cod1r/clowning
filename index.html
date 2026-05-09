@@ -48,6 +48,8 @@
       justify-content: center;
       pointer-events: none;
       z-index: 1;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .toolbar * {
       pointer-events: all;
@@ -99,25 +101,21 @@
     scale1.id = "scale1";
     scale1.style.height = "30px";
     scale1.style.width = "30px";
-    let scale1_rotation = 0;
 
     const scale2 = document.createElement("div");
     scale2.id = "scale2";
     scale2.style.height = "30px";
     scale2.style.width = "30px";
-    let scale2_rotation = 0;
 
     const scale3 = document.createElement("div");
     scale3.id = "scale3";
     scale3.style.height = "30px";
     scale3.style.width = "30px";
-    let scale3_rotation = 0;
 
     const scale4 = document.createElement("div");
     scale4.id = "scale4";
     scale4.style.height = "30px";
     scale4.style.width = "30px";
-    let scale4_rotation = 0;
 
     const horizontalRadius = 30;
     const verticalRadius = 30;
@@ -142,19 +140,14 @@
     rotateFocusControl.style.width = "25px";
     rotateFocusControl.style.height = "25px";
     rotateFocusControl.style.borderRadius = "30px 30px";
-    let rotate_control_rotation = 0;
 
     let topFocusBorder = document.createElement("div");
-    let topFocusBorder_rotation = 0;
     topFocusBorder.style.height = "2px";
     let leftFocusBorder = document.createElement("div");
-    let leftFocusBorder_rotation = 0;
     leftFocusBorder.style.width = "2px";
     let rightFocusBorder = document.createElement("div");
-    let rightFocusBorder_rotation = 0;
     rightFocusBorder.style.width = "2px";
     let bottomFocusBorder = document.createElement("div");
-    let bottomFocusBorder_rotation = 0;
     bottomFocusBorder.style.height = "2px";
 
     scale1.classList.add("focus-ui-controls");
@@ -239,63 +232,6 @@
       root.removeChild(leftFocusBorder);
       root.removeChild(rightFocusBorder);
     }
-    function getRotationForFocusControl(focus_control) {
-      switch (focus_control) {
-        case scale1:
-          return scale1_rotation;
-        case scale2:
-          return scale2_rotation;
-        case scale3:
-          return scale3_rotation;
-        case scale4:
-          return scale4_rotation;
-        case topFocusBorder:
-          return topFocusBorder_rotation;
-        case leftFocusBorder:
-          return leftFocusBorder_rotation;
-        case rightFocusBorder:
-          return rightFocusBorder_rotation;
-        case bottomFocusBorder:
-          return bottomFocusBorder_rotation;
-        case rotateFocusControl:
-          return rotate_control_rotation;
-        default:
-          throw Error("passed in something that wasnt any of the focus controls");
-      }
-    }
-    function setToFocusControlRotation(focus_control, angle) {
-      switch (focus_control) {
-        case scale1:
-          scale1_rotation = angle;
-          break;
-        case scale2:
-          scale2_rotation = angle;
-          break;
-        case scale3:
-          scale3_rotation = angle;
-          break;
-        case scale4:
-          scale4_rotation = angle;
-          break;
-        case topFocusBorder:
-          topFocusBorder_rotation = angle;
-          break;
-        case leftFocusBorder:
-          leftFocusBorder_rotation = angle;
-          break;
-        case rightFocusBorder:
-          rightFocusBorder_rotation = angle;
-          break;
-        case bottomFocusBorder:
-          bottomFocusBorder_rotation = angle;
-          break;
-        case rotateFocusControl:
-          rotate_control_rotation = angle;
-          break;
-        default:
-          break;
-      }
-    }
     function unfocus(e) {
       if (e.target !== focused_item) {
         if (focused_item && selectedFocusUIControl === null) {
@@ -314,20 +250,22 @@
         const { x, y, width, height } = focused_item.getBoundingClientRect();
 
         const focusedMatrix = new DOMMatrix(getComputedStyle(focused_item).transform);
+        const scaleX = Math.sqrt(focusedMatrix.a ** 2 + focusedMatrix.b ** 2);
+        const scaleY = Math.sqrt(focusedMatrix.c ** 2 + focusedMatrix.d ** 2);
 
-        //scale1.style.transform = `translate(${x - 30}px, ${y - 30}px)`;
-        //scale2.style.transform = `translate(${x + width}px, ${y - 30}px)`;
-        //scale3.style.transform = `translate(${x - 30}px, ${y + height}px)`;
-        //scale4.style.transform = `translate(${x + width}px, ${y + height}px)`;
+        topFocusBorder.style.width = `${focused_item.naturalWidth * contentAreaMatrix.a * scaleX}px`;
+        bottomFocusBorder.style.width = `${focused_item.naturalWidth * contentAreaMatrix.a * scaleX}px`;
+        leftFocusBorder.style.height = `${focused_item.naturalHeight * contentAreaMatrix.a * scaleY}px`;
+        rightFocusBorder.style.height = `${focused_item.naturalHeight * contentAreaMatrix.a * scaleY}px`;
 
-        topFocusBorder.style.width = `${width}px`;
-        bottomFocusBorder.style.width = `${width}px`;
-        leftFocusBorder.style.height = `${height}px`;
-        rightFocusBorder.style.height = `${height}px`;
-
-        const halfHeight = (focused_item.naturalHeight / 2) * contentAreaMatrix.a * focusedMatrix.d;
-        const halfWidth = (focused_item.naturalWidth / 2) * contentAreaMatrix.a * focusedMatrix.a;
+        const halfWidth = (focused_item.naturalWidth / 2) * contentAreaMatrix.a * scaleX;
+        const halfHeight = (focused_item.naturalHeight / 2) * contentAreaMatrix.a * scaleY;
+        const lengthForScaleControls = Math.hypot(halfHeight, halfWidth)
         const controlUIInfo = [
+          [scale1, -Math.acos(-halfWidth / lengthForScaleControls), lengthForScaleControls],
+          [scale2, -Math.acos(halfWidth / lengthForScaleControls), lengthForScaleControls],
+          [scale3, Math.acos(-halfWidth / lengthForScaleControls), lengthForScaleControls],
+          [scale4, Math.acos(halfWidth / lengthForScaleControls), lengthForScaleControls],
           [topFocusBorder, -Math.PI / 2, halfHeight],
           [bottomFocusBorder, Math.PI / 2, halfHeight],
           [leftFocusBorder, Math.PI, halfWidth],
@@ -335,22 +273,41 @@
           [rotateFocusControl, -Math.PI / 2, halfHeight + 40],
         ];
         for (const [focus_control, angle_offset, length] of controlUIInfo) {
+          const isScale = [scale1, scale2, scale3, scale4].includes(focus_control)
           const focus_control_bbox = focus_control.getBoundingClientRect();
           const xCenter = focus_control_bbox.x + focus_control_bbox.width / 2;
           const yCenter = focus_control_bbox.y + focus_control_bbox.height / 2;
+          const xPosForScale = (() => {
+            switch (focus_control) {
+              case scale1: return Math.cos(focusItemRotation + Math.PI / 4) * Math.hypot(15, 15);
+              case scale2: return Math.cos(focusItemRotation + 3 * Math.PI / 4) * Math.hypot(15, 15);
+              case scale3: return Math.cos(focusItemRotation + -Math.PI / 4) * Math.hypot(15, 15);
+              case scale4: return Math.cos(focusItemRotation + -3 * Math.PI / 4) * Math.hypot(15, 15);
+              default: return null;
+            }
+          })() + xCenter
+          const yPosForScale = (() => {
+            switch (focus_control) {
+              case scale1: return Math.sin(focusItemRotation + Math.PI / 4) * Math.hypot(15, 15);
+              case scale2: return Math.sin(focusItemRotation + 3 * Math.PI / 4) * Math.hypot(15, 15);
+              case scale3: return Math.sin(focusItemRotation + -Math.PI / 4) * Math.hypot(15, 15);
+              case scale4: return Math.sin(focusItemRotation + -3 * Math.PI / 4) * Math.hypot(15, 15);
+              default: return null;
+            }
+          })() + yCenter
+          const angleOfControl = focusItemRotation + angle_offset
           const matrix = new DOMMatrix(getComputedStyle(focus_control).transform);
-
-          // maybe i need to use the focus items own rotation instead of the focusItemRotation...?
-          const xPos = Math.cos(focusItemRotation + angle_offset) * length + x + width / 2;
-          const yPos = Math.sin(focusItemRotation + angle_offset) * length + y + height / 2;
-          const xDiff = xPos - xCenter;
-          const yDiff = yPos - yCenter;
+          const xPos = Math.cos(angleOfControl) * (length) + x + width / 2;
+          const yPos = Math.sin(angleOfControl) * (length) + y + height / 2;
+          const xDiff = xPos - (isScale ? xPosForScale : xCenter);
+          const yDiff = yPos - (isScale ? yPosForScale : yCenter);
           const hypot = Math.hypot(xDiff, yDiff);
           const angle = Math.acos(xDiff / hypot) * (yDiff === 0 ? 1 : Math.sign(yDiff));
           /* need to make sure I use the angle between the calculated angle and the focusedItemRotation */
           const angle_between = angle - focusItemRotation;
           const translateX = Math.cos(angle_between) * hypot;
           const translateY = Math.sin(angle_between) * hypot;
+
           if (
             translateX !== NaN &&
             translateY !== NaN &&
@@ -452,6 +409,7 @@
         const scaleYOfFocusElement = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
         const { x, y, width, height } = focused_item.getBoundingClientRect();
         if (selectedFocusUIControl === scale1) {
+          const selectedControlBBox = selectedFocusUIControl.getBoundingClientRect()
           const right = x + width;
           const bottom = y + height;
           const percentageX =
@@ -466,8 +424,8 @@
             scaleX,
             scaleY,
             1,
-            width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
-            height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
+            focused_item.naturalWidth / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            focused_item.naturalHeight / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === scale2) {
           const left = x;
@@ -484,8 +442,8 @@
             scaleX,
             scaleY,
             1,
-            -width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
-            height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
+            -focused_item.naturalWidth / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            focused_item.naturalHeight / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === scale3) {
           const right = x + width;
@@ -502,8 +460,8 @@
             scaleX,
             scaleY,
             1,
-            width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
-            -height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
+            focused_item.naturalWidth / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            -focused_item.naturalHeight / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === scale4) {
           const left = x;
@@ -520,8 +478,8 @@
             scaleX,
             scaleY,
             1,
-            -width / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
-            -height / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
+            -focused_item.naturalWidth / 2 / contentAreaMatrix.a / scaleXOfFocusElement,
+            -focused_item.naturalHeight / 2 / contentAreaMatrix.a / scaleYOfFocusElement,
           );
         } else if (selectedFocusUIControl === rotateFocusControl) {
           const diffx = e.clientX - (x + width / 2);
@@ -532,10 +490,10 @@
           matrix.rotateSelf(((angle_of_mouse + Math.PI / 2 - focusItemRotation) * 180) / Math.PI);
 
           const focus_ui_parts = [
-            //scale1,
-            //scale2,
-            //scale3,
-            //scale4,
+            scale1,
+            scale2,
+            scale3,
+            scale4,
             rotateFocusControl,
             topFocusBorder,
             rightFocusBorder,
@@ -559,20 +517,18 @@
             const x_translate_amt = new_x_pos - ui_part_x_center;
             const y_translate_amt = new_y_pos - ui_part_y_center;
 
-            const current_rotation = getRotationForFocusControl(ui_part);
             const hypot_for_ui_part = Math.hypot(x_translate_amt, y_translate_amt);
             const angle_of_translation_vector =
               Math.acos(x_translate_amt / hypot_for_ui_part) *
               (y_translate_amt === 0 ? 1 : Math.sign(y_translate_amt));
-            const angle_between = angle_of_translation_vector - current_rotation;
+            const angle_between = angle_of_translation_vector - focusItemRotation;
             const angled_x_translation = Math.cos(angle_between) * hypot_for_ui_part;
             const angled_y_translation = Math.sin(angle_between) * hypot_for_ui_part;
 
             matrix.translateSelf(angled_x_translation, angled_y_translation);
 
             const target_angle = angle_of_mouse + Math.PI / 2;
-            matrix.rotateSelf(((target_angle - current_rotation) * 180) / Math.PI);
-            setToFocusControlRotation(ui_part, target_angle);
+            matrix.rotateSelf(((target_angle - focusItemRotation) * 180) / Math.PI);
 
             ui_part.style.transform = matrix.toString();
           }
