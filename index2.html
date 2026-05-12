@@ -19,16 +19,16 @@
     matrix.translateSelf(10, 10);
     d.style.transform = matrix.toString();
     let current_rotation = 0;
-let current_scalingX = 1;
-let current_scalingY = 1;
+    let current_scalingX = 1;
+    let current_scalingY = 1;
     i.oninput = (e) => {
-const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2)
-const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2)
-matrix.scaleSelf(1 / scaleX, 1 / scaleY)
+      const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
+      const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
+      matrix.scaleSelf(1 / scaleX, 1 / scaleY);
       matrix.rotateSelf(((+e.target.value - current_rotation) * 180) / Math.PI);
-matrix.scaleSelf(2, 1)
-current_scalingX = 2
-current_scalingY = 1
+      matrix.scaleSelf(2, 1);
+      current_scalingX = 2;
+      current_scalingY = 1;
       current_rotation = +e.target.value;
       d.style.transform = matrix.toString();
       console.log((current_rotation * 180) / Math.PI);

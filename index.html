@@ -169,39 +169,45 @@
 
     /* this function should only be used for focus controls or the focused item */
     function calculateCornersBasedOnRotation(element) {
-      if (element === null) throw Error("element is null")
-      const { x, y, width, height } = element.getBoundingClientRect()
+      if (element === null) throw Error("element is null");
+      const { x, y, width, height } = element.getBoundingClientRect();
       const x_center = x + width / 2;
       const y_center = y + height / 2;
-      const matrix = new DOMMatrix(getComputedStyle(focused_item).transform)
-      const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2)
-      const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2)
-      const actualHalfWidth = element === focused_item ? (focused_item.naturalWidth / 2 * contentAreaMatrix.a * scaleX) : parseInt(element.style.width) / 2
-      const actualHalfHeight = element === focused_item ? (focused_item.naturalHeight / 2 * contentAreaMatrix.a * scaleY) : parseInt(element.style.height) / 2
-      const dist = Math.hypot(actualHalfWidth, actualHalfHeight)
+      const matrix = new DOMMatrix(getComputedStyle(focused_item).transform);
+      const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
+      const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
+      const actualHalfWidth =
+        element === focused_item
+          ? (focused_item.naturalWidth / 2) * contentAreaMatrix.a * scaleX
+          : parseInt(element.style.width) / 2;
+      const actualHalfHeight =
+        element === focused_item
+          ? (focused_item.naturalHeight / 2) * contentAreaMatrix.a * scaleY
+          : parseInt(element.style.height) / 2;
+      const dist = Math.hypot(actualHalfWidth, actualHalfHeight);
 
       function getXY(angle_offset) {
         return [
           Math.cos(focusItemRotation + angle_offset) * dist + x_center,
-          Math.sin(focusItemRotation + angle_offset) * dist + y_center
-        ]
+          Math.sin(focusItemRotation + angle_offset) * dist + y_center,
+        ];
       }
 
       const angles = [
         -Math.acos(-actualHalfWidth / dist),
         -Math.acos(actualHalfWidth / dist),
         Math.acos(-actualHalfWidth / dist),
-        Math.acos(actualHalfWidth / dist)
-      ]
-      return angles.map(angle => getXY(angle))
+        Math.acos(actualHalfWidth / dist),
+      ];
+      return angles.map((angle) => getXY(angle));
     }
     scale1.onpointerdown = (e) => {
       if (focused_item === null) {
         return;
       }
       selectedFocusUIControl = scale1;
-      const [,,,bottomRightCorner] = calculateCornersBasedOnRotation(scale1)
-      const [bottomRightX, bottomRightY] = bottomRightCorner
+      const [, , , bottomRightCorner] = calculateCornersBasedOnRotation(scale1);
+      const [bottomRightX, bottomRightY] = bottomRightCorner;
       diffFromCornerSelectedControl = [e.clientX - bottomRightX, e.clientY - bottomRightY];
     };
     scale2.onpointerdown = (e) => {
@@ -209,8 +215,8 @@
         return;
       }
       selectedFocusUIControl = scale2;
-      const [,,bottomLeftCorner] = calculateCornersBasedOnRotation(scale2)
-      const [bottomLeftX, bottomLeftY] = bottomLeftCorner
+      const [, , bottomLeftCorner] = calculateCornersBasedOnRotation(scale2);
+      const [bottomLeftX, bottomLeftY] = bottomLeftCorner;
       diffFromCornerSelectedControl = [e.clientX - bottomLeftX, e.clientY - bottomLeftY];
     };
     scale3.onpointerdown = (e) => {
@@ -218,8 +224,8 @@
         return;
       }
       selectedFocusUIControl = scale3;
-      const [,topRightCorner] = calculateCornersBasedOnRotation(scale3)
-      const [topRightX, topRightY] = topRightCorner
+      const [, topRightCorner] = calculateCornersBasedOnRotation(scale3);
+      const [topRightX, topRightY] = topRightCorner;
       diffFromCornerSelectedControl = [e.clientX - topRightX, e.clientY - topRightY];
     };
     scale4.onpointerdown = (e) => {
@@ -227,8 +233,8 @@
         return;
       }
       selectedFocusUIControl = scale4;
-      const [topLeftCorner] = calculateCornersBasedOnRotation(scale4)
-      const [topLeftX, topLeftY] = topLeftCorner
+      const [topLeftCorner] = calculateCornersBasedOnRotation(scale4);
+      const [topLeftX, topLeftY] = topLeftCorner;
       diffFromCornerSelectedControl = [e.clientX - topLeftX, e.clientY - topLeftY];
     };
     rotateFocusControl.onpointerdown = (e) => {
@@ -450,12 +456,15 @@
     function transformToRotatedCoordinates(control_bbox, x, y, rotation_angle) {
       const controlXCenter = control_bbox.x + control_bbox.width / 2;
       const controlYCenter = control_bbox.y + control_bbox.height / 2;
-      const diffX = x - controlXCenter
-      const diffY = y - controlYCenter
-      const dist = Math.hypot(diffX, diffY)
-      const angle = Math.acos(diffX / dist) * (diffY === 0 ? 1 : Math.sign(diffY))
-      const angle_between = angle - rotation_angle
-      return [Math.cos(angle_between) * dist + controlXCenter, Math.sin(angle_between) * dist + controlYCenter]
+      const diffX = x - controlXCenter;
+      const diffY = y - controlYCenter;
+      const dist = Math.hypot(diffX, diffY);
+      const angle = Math.acos(diffX / dist) * (diffY === 0 ? 1 : Math.sign(diffY));
+      const angle_between = angle - rotation_angle;
+      return [
+        Math.cos(angle_between) * dist + controlXCenter,
+        Math.sin(angle_between) * dist + controlYCenter,
+      ];
     }
     function moveFocusUIControl(e) {
       if (selectedFocusUIControl !== null) {
@@ -464,66 +473,73 @@
         const scaleXOfFocusElement = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
         const scaleYOfFocusElement = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
         const { x, y, width, height } = focused_item.getBoundingClientRect();
-        const actualWidth = focused_item.naturalWidth * contentAreaMatrix.a * scaleXOfFocusElement
-        const actualHeight = focused_item.naturalHeight * contentAreaMatrix.a * scaleYOfFocusElement
-        const [topLeftCorner, topRightCorner, bottomLeftCorner,bottomRightCorner] = calculateCornersBasedOnRotation(focused_item)
+        const actualWidth = focused_item.naturalWidth * contentAreaMatrix.a * scaleXOfFocusElement;
+        const actualHeight =
+          focused_item.naturalHeight * contentAreaMatrix.a * scaleYOfFocusElement;
+        const [topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner] =
+          calculateCornersBasedOnRotation(focused_item);
         function getScaling(eventX, eventY, scale_element) {
           switch (scale_element) {
             case scale1: {
-              const [topRightX, topRightY] = topRightCorner
-              const [bottomLeftX, bottomLeftY] = bottomLeftCorner
-              const scaleX = Math.hypot((eventX - topRightX), (eventY - topRightY)) / actualWidth
-              const scaleY = Math.hypot((eventX - bottomLeftX), (eventY - bottomLeftY)) / actualHeight
-              return [scaleX, scaleY]
+              const [topRightX, topRightY] = topRightCorner;
+              const [bottomLeftX, bottomLeftY] = bottomLeftCorner;
+              const scaleX = Math.hypot(eventX - topRightX, eventY - topRightY) / actualWidth;
+              const scaleY = Math.hypot(eventX - bottomLeftX, eventY - bottomLeftY) / actualHeight;
+              return [scaleX, scaleY];
             }
             case scale2: {
-              const [topLeftX, topLeftY] = topLeftCorner
-              const [bottomRightX, bottomRightY] = bottomRightCorner
-              const scaleX = Math.hypot((eventX - topLeftX), (eventY - topLeftY)) / actualWidth
-              const scaleY = Math.hypot((eventX - bottomRightX), (eventY - bottomRightY)) / actualHeight
-              return [scaleX, scaleY]
+              const [topLeftX, topLeftY] = topLeftCorner;
+              const [bottomRightX, bottomRightY] = bottomRightCorner;
+              const scaleX = Math.hypot(eventX - topLeftX, eventY - topLeftY) / actualWidth;
+              const scaleY =
+                Math.hypot(eventX - bottomRightX, eventY - bottomRightY) / actualHeight;
+              return [scaleX, scaleY];
             }
             case scale3: {
-              const [topLeftX, topLeftY] = topLeftCorner
-              const [bottomRightX, bottomRightY] = bottomRightCorner
-              const scaleX = Math.hypot((eventX - bottomRightX), (eventY - bottomRightY)) / actualWidth
-              const scaleY = Math.hypot((eventX - topLeftX), (eventY - topLeftY)) / actualHeight
-              return [scaleX, scaleY]
+              const [topLeftX, topLeftY] = topLeftCorner;
+              const [bottomRightX, bottomRightY] = bottomRightCorner;
+              const scaleX = Math.hypot(eventX - bottomRightX, eventY - bottomRightY) / actualWidth;
+              const scaleY = Math.hypot(eventX - topLeftX, eventY - topLeftY) / actualHeight;
+              return [scaleX, scaleY];
             }
             case scale4: {
-              const [topRightX, topRightY] = topRightCorner
-              const [bottomLeftX, bottomLeftY] = bottomLeftCorner
-              const scaleX = Math.hypot((eventX - bottomLeftX), (eventY - bottomLeftY)) / actualWidth
-              const scaleY = Math.hypot((eventX - topRightX), (eventY - topRightY)) / actualHeight
-              return [scaleX, scaleY]
+              const [topRightX, topRightY] = topRightCorner;
+              const [bottomLeftX, bottomLeftY] = bottomLeftCorner;
+              const scaleX = Math.hypot(eventX - bottomLeftX, eventY - bottomLeftY) / actualWidth;
+              const scaleY = Math.hypot(eventX - topRightX, eventY - topRightY) / actualHeight;
+              return [scaleX, scaleY];
             }
           }
-          throw Error("scale_element is not any of the focus scale controls")
+          throw Error("scale_element is not any of the focus scale controls");
         }
         function getScaleOrigin(scale_control) {
           switch (scale_control) {
-            case scale1: return [focused_item.naturalWidth / 2, focused_item.naturalHeight / 2]
-            case scale2: return [-focused_item.naturalWidth / 2, focused_item.naturalHeight / 2]
-            case scale3: return [focused_item.naturalWidth / 2, -focused_item.naturalHeight / 2]
-            case scale4: return [-focused_item.naturalWidth / 2, -focused_item.naturalHeight / 2]
+            case scale1:
+              return [focused_item.naturalWidth / 2, focused_item.naturalHeight / 2];
+            case scale2:
+              return [-focused_item.naturalWidth / 2, focused_item.naturalHeight / 2];
+            case scale3:
+              return [focused_item.naturalWidth / 2, -focused_item.naturalHeight / 2];
+            case scale4:
+              return [-focused_item.naturalWidth / 2, -focused_item.naturalHeight / 2];
           }
-          throw Error("scale_element is not any of the focus scale controls")
+          throw Error("scale_element is not any of the focus scale controls");
         }
         if ([scale1, scale2, scale3, scale4].includes(selectedFocusUIControl)) {
-          const eventX = e.clientX - diffFromCornerSelectedControl[0]
-          const eventY = e.clientY - diffFromCornerSelectedControl[1]
-          const [scaleX, scaleY] = getScaling(eventX, eventY, selectedFocusUIControl)
-          const [scaleOriginX, scaleOriginY] = getScaleOrigin(selectedFocusUIControl)
-          matrix.scaleSelf(scaleX, scaleY, 1, scaleOriginX, scaleOriginY)
+          const eventX = e.clientX - diffFromCornerSelectedControl[0];
+          const eventY = e.clientY - diffFromCornerSelectedControl[1];
+          const [scaleX, scaleY] = getScaling(eventX, eventY, selectedFocusUIControl);
+          const [scaleOriginX, scaleOriginY] = getScaleOrigin(selectedFocusUIControl);
+          matrix.scaleSelf(scaleX, scaleY, 1, scaleOriginX, scaleOriginY);
         } else if (selectedFocusUIControl === rotateFocusControl) {
           const diffx = e.clientX - (x + width / 2);
           const diffy = e.clientY - (y + height / 2);
           const hypot = Math.hypot(diffx, diffy);
           const angle_of_mouse = Math.acos(diffx / hypot) * (diffy === 0 ? 1 : Math.sign(diffy));
 
-          matrix.scaleSelf(1 / scaleXOfFocusElement, 1 / scaleYOfFocusElement)
+          matrix.scaleSelf(1 / scaleXOfFocusElement, 1 / scaleYOfFocusElement);
           matrix.rotateSelf(((angle_of_mouse + Math.PI / 2 - focusItemRotation) * 180) / Math.PI);
-          matrix.scaleSelf(scaleXOfFocusElement, scaleYOfFocusElement)
+          matrix.scaleSelf(scaleXOfFocusElement, scaleYOfFocusElement);
 
           const focus_ui_parts = [
             scale1,
