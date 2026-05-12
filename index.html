@@ -240,11 +240,11 @@
       const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
       const actualHalfWidth =
         element === focused_item
-          ? (focused_item.naturalWidth / 2) * contentAreaMatrix.a * scaleX
+          ? (focused_item.width / 2) * contentAreaMatrix.a * scaleX
           : parseInt(element.style.width) / 2;
       const actualHalfHeight =
         element === focused_item
-          ? (focused_item.naturalHeight / 2) * contentAreaMatrix.a * scaleY
+          ? (focused_item.height / 2) * contentAreaMatrix.a * scaleY
           : parseInt(element.style.height) / 2;
       const dist = Math.hypot(actualHalfWidth, actualHalfHeight);
 
@@ -315,8 +315,8 @@
       root.removeChild(leftFocusBorder);
       root.removeChild(rightFocusBorder);
     }
-    function unfocus(e) {
-      if (e.target !== focused_item && e.target !== selectedFocusUIControl) {
+    function unfocus(element) {
+      if (element !== focused_item && element !== selectedFocusUIControl) {
         if (focused_item) {
           focused_item.classList.remove("grabbing");
           if (selectedFocusUIControl === null) {
@@ -353,13 +353,13 @@
           rotateFocusControl,
         } = contentItemInfo.controls;
 
-        topFocusBorder.style.width = `${focused_item.naturalWidth * contentAreaMatrix.a * scaleX}px`;
-        bottomFocusBorder.style.width = `${focused_item.naturalWidth * contentAreaMatrix.a * scaleX}px`;
-        leftFocusBorder.style.height = `${focused_item.naturalHeight * contentAreaMatrix.a * scaleY}px`;
-        rightFocusBorder.style.height = `${focused_item.naturalHeight * contentAreaMatrix.a * scaleY}px`;
+        topFocusBorder.style.width = `${focused_item.width * contentAreaMatrix.a * scaleX}px`;
+        bottomFocusBorder.style.width = `${focused_item.width * contentAreaMatrix.a * scaleX}px`;
+        leftFocusBorder.style.height = `${focused_item.height * contentAreaMatrix.a * scaleY}px`;
+        rightFocusBorder.style.height = `${focused_item.height * contentAreaMatrix.a * scaleY}px`;
 
-        const halfWidth = (focused_item.naturalWidth / 2) * contentAreaMatrix.a * scaleX;
-        const halfHeight = (focused_item.naturalHeight / 2) * contentAreaMatrix.a * scaleY;
+        const halfWidth = (focused_item.width / 2) * contentAreaMatrix.a * scaleX;
+        const halfHeight = (focused_item.height / 2) * contentAreaMatrix.a * scaleY;
         const lengthForScaleControls = Math.hypot(halfHeight, halfWidth);
         const controlUIInfo = [
           [scale1, -Math.acos(-halfWidth / lengthForScaleControls), lengthForScaleControls],
@@ -456,7 +456,7 @@
     function setFocusedItem(e) {
       if (e.target.classList.contains("content-item")) {
         pointer_down = true;
-        unfocus(e);
+        unfocus(e.target);
         const node = e.target.parentNode.removeChild(e.target);
         content_area.appendChild(node);
         focused_item = e.target;
@@ -554,9 +554,9 @@
         const { x, y, width, height } = focused_item.getBoundingClientRect();
         const contentItemInfo = getContentItemInfo(focused_item);
         if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined");
-        const actualWidth = focused_item.naturalWidth * contentAreaMatrix.a * scaleXOfFocusElement;
+        const actualWidth = focused_item.width * contentAreaMatrix.a * scaleXOfFocusElement;
         const actualHeight =
-          focused_item.naturalHeight * contentAreaMatrix.a * scaleYOfFocusElement;
+          focused_item.height * contentAreaMatrix.a * scaleYOfFocusElement;
         const [topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner] =
           calculateCornersBasedOnRotation(focused_item);
         const {
@@ -607,13 +607,13 @@
         function getScaleOrigin(scale_control) {
           switch (scale_control) {
             case scale1:
-              return [focused_item.naturalWidth / 2, focused_item.naturalHeight / 2];
+              return [focused_item.width / 2, focused_item.height / 2];
             case scale2:
-              return [-focused_item.naturalWidth / 2, focused_item.naturalHeight / 2];
+              return [-focused_item.width / 2, focused_item.height / 2];
             case scale3:
-              return [focused_item.naturalWidth / 2, -focused_item.naturalHeight / 2];
+              return [focused_item.width / 2, -focused_item.height / 2];
             case scale4:
-              return [-focused_item.naturalWidth / 2, -focused_item.naturalHeight / 2];
+              return [-focused_item.width / 2, -focused_item.height / 2];
           }
           throw Error("scale_element is not any of the focus scale controls");
         }
@@ -670,7 +670,7 @@
     }
     function pointerUpHandler(e) {
       pointer_down = false;
-      unfocus(e);
+      unfocus(e.target);
       selectedFocusUIControl = null;
     }
     function getContentClipboard() {
@@ -688,7 +688,7 @@
               img.src = imageUrl;
               img.draggable = false;
               img.decode().then(() => {
-if (focused_item) removeFocusControls()
+                if (focused_item) removeFocusControls();
                 contentItems.push({
                   item: img,
                   focusItemRotation: 0,
@@ -713,7 +713,7 @@ if (focused_item) removeFocusControls()
                   img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
                   img.draggable = false;
                   img.decode().then(() => {
-if (focused_item) removeFocusControls()
+                    if (focused_item) removeFocusControls();
                     contentItems.push({
                       item: img,
                       focusItemRotation: 0,
@@ -721,7 +721,7 @@ if (focused_item) removeFocusControls()
                     });
                     focused_item = img;
                     content_area.appendChild(img);
-                  });
+                  })
                 } else {
                   throw Error("TODO");
                 }
@@ -733,19 +733,28 @@ if (focused_item) removeFocusControls()
     }
     const paste_btn = document.getElementById("paste-btn");
     paste_btn.onclick = getContentClipboard;
+    const add_txt_btn = document.getElementById("add-txt-btn")
+    add_txt_btn.onclick = function() {
+      const svg = document.createElement()
+      content_area.appendChild()
+    }
     document.addEventListener("paste", getContentClipboard);
     document.addEventListener("pointermove", pointerMoveHandler);
     document.addEventListener("pointerup", pointerUpHandler);
     document.addEventListener("pointerdown", pointerDownHandler);
     document.addEventListener("copy", async () => {
       if (focused_item) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "image/png": await fetch(focused_item.src)
-              .then((r) => r.blob())
-              .then((blob) => blob),
-          }),
-        ]);
+          await navigator.clipboard.write([
+            new ClipboardItem(
+focused_item.src.startsWith("data:image/svg+xml;base64") ? {
+"text/plain": atob(focused_item.src.slice("data:image/svg+xml;base64".length + 1))
+} :
+{
+              "image/png": await fetch(focused_item.src)
+                .then((r) => r.blob())
+                .then((blob) => blob),
+            }),
+          ]);
       }
     });
     document.addEventListener(
@@ -780,13 +789,15 @@ if (focused_item) removeFocusControls()
     document.addEventListener("keydown", (e) => {
       if (e.key === "Backspace") {
         if (focused_item) {
-          content_area.removeChild(focused_item)
-          removeFocusControls()
-          const contentItemIdx = contentItems.findIndex(contentItem => contentItem.item === focused_item)
-          contentItems.splice(contentItemIdx, 1)
-          focused_item = null
+          content_area.removeChild(focused_item);
+          removeFocusControls();
+          const contentItemIdx = contentItems.findIndex(
+            (contentItem) => contentItem.item === focused_item,
+          );
+          contentItems.splice(contentItemIdx, 1);
+          focused_item = null;
         }
       }
-    })
+    });
   </script>
 </html>
