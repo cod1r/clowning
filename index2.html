@@ -9,29 +9,39 @@
 </head>
 <html>
   <body>
-    <div style="width: 50px; height: 50px; background-color: red"></div>
-    <input type="range" min="0" max="6.28" step="0.01" value="0" />
+    <img id="img" width="800" height="800" />
+    <div style="font-family='Times Roman'"></div>
   </body>
   <script>
-    const d = document.querySelector("div");
-    const i = document.querySelector("input[type='range']");
-    const matrix = new DOMMatrix();
-    matrix.translateSelf(10, 10);
-    d.style.transform = matrix.toString();
-    let current_rotation = 0;
-    let current_scalingX = 1;
-    let current_scalingY = 1;
-    i.oninput = (e) => {
-      const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
-      const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
-      matrix.scaleSelf(1 / scaleX, 1 / scaleY);
-      matrix.rotateSelf(((+e.target.value - current_rotation) * 180) / Math.PI);
-      matrix.scaleSelf(2, 1);
-      current_scalingX = 2;
-      current_scalingY = 1;
-      current_rotation = +e.target.value;
-      d.style.transform = matrix.toString();
-      console.log((current_rotation * 180) / Math.PI);
-    };
+    const img = document.querySelector("img")
+    const div = document.querySelector("div")
+    const keys = "abcdefghijklmnopqrstuvwxyz !@"
+    const offscreenCanvas = new OffscreenCanvas(500, 500)
+    const ctx = offscreenCanvas.getContext("2d")
+    let horizontal_pos = 0
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+    svg.setAttribute("viewBox", "0 0 500 500")
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg")
+    document.onkeydown = (e) => {
+      if (keys.includes(e.key)) {
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
+        text.setAttribute("font-family", "Times New Roman")
+        text.setAttribute("x", `${horizontal_pos}`)
+        text.setAttribute("y", "10")
+        text.setAttribute("fill", "black")
+        text.appendChild(document.createTextNode(e.key))
+        const size = ctx.measureText(e.key)
+        horizontal_pos += (size.actualBoundingBoxLeft + size.actualBoundingBoxRight)
+        svg.appendChild(text)
+      div.appendChild(document.createTextNode(e.key))
+      } else if (e.key === "Backspace") {
+        console.log(svg.lastElementChild.textContent)
+        const size = ctx.measureText(svg.lastElementChild.textContent)
+        horizontal_pos -= (size.actualBoundingBoxLeft + size.actualBoundingBoxRight)
+        svg.lastElementChild.remove()
+      div.lastElementChild.remove()
+      }
+      img.src = `data:image/svg+xml,${svg.outerHTML}`
+    }
   </script>
 </html>
