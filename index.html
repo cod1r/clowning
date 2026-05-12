@@ -455,7 +455,7 @@
     }
     function setFocusedItem(e) {
       if (e.target.classList.contains("content-item")) {
-        pointer_down = true
+        pointer_down = true;
         unfocus(e);
         const node = e.target.parentNode.removeChild(e.target);
         content_area.appendChild(node);
@@ -517,15 +517,17 @@
       const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
       const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
       const hypot = Math.hypot(tX, tY);
-      const angle =
-        Math.acos(tX / hypot) * (tY === 0 ? 1 : Math.sign(tY));
+      const angle = Math.acos(tX / hypot) * (tY === 0 ? 1 : Math.sign(tY));
       const contentItemInfo = getContentItemInfo(focused_item);
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
       const angle_between = angle - contentItemInfo.focusItemRotation;
       const tx_amt = Math.cos(angle_between) * hypot;
       const ty_amt = Math.sin(angle_between) * hypot;
       if (tx_amt !== NaN && ty_amt !== NaN && isFinite(tx_amt) && isFinite(ty_amt)) {
-        matrix.translateSelf(tx_amt / contentAreaMatrix.a / scaleX, ty_amt / contentAreaMatrix.a / scaleY);
+        matrix.translateSelf(
+          tx_amt / contentAreaMatrix.a / scaleX,
+          ty_amt / contentAreaMatrix.a / scaleY,
+        );
         focused_item.style.transform = matrix.toString();
       }
       alignFocusControls();
@@ -669,7 +671,7 @@
     function pointerUpHandler(e) {
       pointer_down = false;
       unfocus(e);
-      selectedFocusUIControl = null
+      selectedFocusUIControl = null;
     }
     function getContentClipboard() {
       navigator.clipboard.read().then((items) => {
@@ -686,6 +688,7 @@
               img.src = imageUrl;
               img.draggable = false;
               img.decode().then(() => {
+if (focused_item) removeFocusControls()
                 contentItems.push({
                   item: img,
                   focusItemRotation: 0,
@@ -710,6 +713,7 @@
                   img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
                   img.draggable = false;
                   img.decode().then(() => {
+if (focused_item) removeFocusControls()
                     contentItems.push({
                       item: img,
                       focusItemRotation: 0,
@@ -773,5 +777,16 @@
       },
       { passive: false },
     );
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace") {
+        if (focused_item) {
+          content_area.removeChild(focused_item)
+          removeFocusControls()
+          const contentItemIdx = contentItems.findIndex(contentItem => contentItem.item === focused_item)
+          contentItems.splice(contentItemIdx, 1)
+          focused_item = null
+        }
+      }
+    })
   </script>
 </html>
