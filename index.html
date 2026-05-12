@@ -206,7 +206,7 @@
           return;
         }
         selectedFocusUIControl = rotateFocusControl;
-      }
+      };
       return {
         scale1,
         scale2,
@@ -217,7 +217,7 @@
         rightFocusBorder,
         bottomFocusBorder,
         rotateFocusControl,
-      }
+      };
     }
 
     let focused_item = null;
@@ -225,7 +225,7 @@
     const contentItems = [];
 
     function getContentItemInfo() {
-      return contentItems.find((contentItem) => contentItem.item === focused_item)
+      return contentItems.find((contentItem) => contentItem.item === focused_item);
     }
 
     /* this function should only be used for focus controls or the focused item */
@@ -248,9 +248,9 @@
       const dist = Math.hypot(actualHalfWidth, actualHalfHeight);
 
       function getXY(angle_offset) {
-        const contentItemInfo = getContentItemInfo(focused_item)
-        if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined")
-        const focusItemRotation = contentItemInfo.focusItemRotation
+        const contentItemInfo = getContentItemInfo(focused_item);
+        if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined");
+        const focusItemRotation = contentItemInfo.focusItemRotation;
         return [
           Math.cos(focusItemRotation + angle_offset) * dist + x_center,
           Math.sin(focusItemRotation + angle_offset) * dist + y_center,
@@ -269,10 +269,19 @@
     let grabbed_item = null;
     let focused_point_info = null;
     function addFocusControls() {
-      const contentItemInfo = getContentItemInfo(focused_item)
-      if (contentItemInfo === undefined) throw Error("content item info is undefined")
-      const { scale1, scale2, scale3, scale4, rotateFocusControl, topFocusBorder, bottomFocusBorder, leftFocusBorder, rightFocusBorder } =
-        contentItemInfo.controls
+      const contentItemInfo = getContentItemInfo(focused_item);
+      if (contentItemInfo === undefined) throw Error("content item info is undefined");
+      const {
+        scale1,
+        scale2,
+        scale3,
+        scale4,
+        rotateFocusControl,
+        topFocusBorder,
+        bottomFocusBorder,
+        leftFocusBorder,
+        rightFocusBorder,
+      } = contentItemInfo.controls;
       root.appendChild(scale1);
       root.appendChild(scale2);
       root.appendChild(scale3);
@@ -284,10 +293,19 @@
       root.appendChild(rightFocusBorder);
     }
     function removeFocusControls() {
-      const contentItemInfo = getContentItemInfo(focused_item)
-      if (contentItemInfo === undefined) throw Error("content item info is undefined")
-      const { scale1, scale2, scale3, scale4, rotateFocusControl, topFocusBorder, bottomFocusBorder, leftFocusBorder, rightFocusBorder } =
-        contentItemInfo.controls
+      const contentItemInfo = getContentItemInfo(focused_item);
+      if (contentItemInfo === undefined) throw Error("content item info is undefined");
+      const {
+        scale1,
+        scale2,
+        scale3,
+        scale4,
+        rotateFocusControl,
+        topFocusBorder,
+        bottomFocusBorder,
+        leftFocusBorder,
+        rightFocusBorder,
+      } = contentItemInfo.controls;
       root.removeChild(scale1);
       root.removeChild(scale2);
       root.removeChild(scale3);
@@ -318,8 +336,8 @@
         const focusedMatrix = new DOMMatrix(getComputedStyle(focused_item).transform);
         const scaleX = Math.sqrt(focusedMatrix.a ** 2 + focusedMatrix.b ** 2);
         const scaleY = Math.sqrt(focusedMatrix.c ** 2 + focusedMatrix.d ** 2);
-        const contentItemInfo = getContentItemInfo(focused_item)
-        if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined")
+        const contentItemInfo = getContentItemInfo(focused_item);
+        if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined");
 
         const {
           scale1,
@@ -330,8 +348,8 @@
           leftFocusBorder,
           rightFocusBorder,
           bottomFocusBorder,
-          rotateFocusControl
-        } = contentItemInfo.controls
+          rotateFocusControl,
+        } = contentItemInfo.controls;
 
         topFocusBorder.style.width = `${focused_item.naturalWidth * contentAreaMatrix.a * scaleX}px`;
         bottomFocusBorder.style.width = `${focused_item.naturalWidth * contentAreaMatrix.a * scaleX}px`;
@@ -363,13 +381,23 @@
               // properly
               switch (focus_control) {
                 case scale1:
-                  return Math.cos(contentItemInfo.focusItemRotation + Math.PI / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.cos(contentItemInfo.focusItemRotation + Math.PI / 4) * Math.hypot(15, 15)
+                  );
                 case scale2:
-                  return Math.cos(contentItemInfo.focusItemRotation + (3 * Math.PI) / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.cos(contentItemInfo.focusItemRotation + (3 * Math.PI) / 4) *
+                    Math.hypot(15, 15)
+                  );
                 case scale3:
-                  return Math.cos(contentItemInfo.focusItemRotation + -Math.PI / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.cos(contentItemInfo.focusItemRotation + -Math.PI / 4) * Math.hypot(15, 15)
+                  );
                 case scale4:
-                  return Math.cos(contentItemInfo.focusItemRotation + (-3 * Math.PI) / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.cos(contentItemInfo.focusItemRotation + (-3 * Math.PI) / 4) *
+                    Math.hypot(15, 15)
+                  );
                 default:
                   return null;
               }
@@ -378,13 +406,23 @@
             (() => {
               switch (focus_control) {
                 case scale1:
-                  return Math.sin(contentItemInfo.focusItemRotation + Math.PI / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.sin(contentItemInfo.focusItemRotation + Math.PI / 4) * Math.hypot(15, 15)
+                  );
                 case scale2:
-                  return Math.sin(contentItemInfo.focusItemRotation + (3 * Math.PI) / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.sin(contentItemInfo.focusItemRotation + (3 * Math.PI) / 4) *
+                    Math.hypot(15, 15)
+                  );
                 case scale3:
-                  return Math.sin(contentItemInfo.focusItemRotation + -Math.PI / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.sin(contentItemInfo.focusItemRotation + -Math.PI / 4) * Math.hypot(15, 15)
+                  );
                 case scale4:
-                  return Math.sin(contentItemInfo.focusItemRotation + (-3 * Math.PI) / 4) * Math.hypot(15, 15);
+                  return (
+                    Math.sin(contentItemInfo.focusItemRotation + (-3 * Math.PI) / 4) *
+                    Math.hypot(15, 15)
+                  );
                 default:
                   return null;
               }
@@ -489,8 +527,8 @@
       const hypot = Math.hypot(translateXAmt, translateYAmt);
       const angle =
         Math.acos(translateXAmt / hypot) * (translateYAmt === 0 ? 1 : Math.sign(translateYAmt));
-      const contentItemInfo = getContentItemInfo(focused_item)
-      if (contentItemInfo === undefined) throw Error("content item info is undefined")
+      const contentItemInfo = getContentItemInfo(focused_item);
+      if (contentItemInfo === undefined) throw Error("content item info is undefined");
       const angle_between = angle - contentItemInfo.focusItemRotation;
       const tx_amt = Math.cos(angle_between) * hypot;
       const ty_amt = Math.sin(angle_between) * hypot;
@@ -520,8 +558,8 @@
         const scaleXOfFocusElement = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
         const scaleYOfFocusElement = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
         const { x, y, width, height } = focused_item.getBoundingClientRect();
-        const contentItemInfo = getContentItemInfo(focused_item)
-        if (contentItemInfo === undefined) throw Error('contentItemInfo is undefined')
+        const contentItemInfo = getContentItemInfo(focused_item);
+        if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined");
         const actualWidth = focused_item.naturalWidth * contentAreaMatrix.a * scaleXOfFocusElement;
         const actualHeight =
           focused_item.naturalHeight * contentAreaMatrix.a * scaleYOfFocusElement;
@@ -536,8 +574,8 @@
           leftFocusBorder,
           rightFocusBorder,
           bottomFocusBorder,
-          rotateFocusControl
-        } = contentItemInfo.controls
+          rotateFocusControl,
+        } = contentItemInfo.controls;
         function getScaling(eventX, eventY, scale_element) {
           switch (scale_element) {
             case scale1: {
@@ -598,7 +636,9 @@
           const angle_of_mouse = Math.acos(diffx / hypot) * (diffy === 0 ? 1 : Math.sign(diffy));
 
           matrix.scaleSelf(1 / scaleXOfFocusElement, 1 / scaleYOfFocusElement);
-          matrix.rotateSelf(((angle_of_mouse + Math.PI / 2 - contentItemInfo.focusItemRotation) * 180) / Math.PI);
+          matrix.rotateSelf(
+            ((angle_of_mouse + Math.PI / 2 - contentItemInfo.focusItemRotation) * 180) / Math.PI,
+          );
           matrix.scaleSelf(scaleXOfFocusElement, scaleYOfFocusElement);
 
           for (const ui_part of Object.values(contentItemInfo.controls)) {
@@ -658,7 +698,11 @@
               img.src = imageUrl;
               img.draggable = false;
               img.decode().then(() => {
-                contentItems.push({ item: img, focusItemRotation: 0, controls: createFocusControls() })
+                contentItems.push({
+                  item: img,
+                  focusItemRotation: 0,
+                  controls: createFocusControls(),
+                });
                 focused_item = img;
                 content_area.appendChild(img);
               });
@@ -678,7 +722,11 @@
                   img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
                   img.draggable = false;
                   img.decode().then(() => {
-                    contentItems.push({ item: img, focusItemRotation: 0, controls: createFocusControls() })
+                    contentItems.push({
+                      item: img,
+                      focusItemRotation: 0,
+                      controls: createFocusControls(),
+                    });
                     focused_item = img;
                     content_area.appendChild(img);
                   });
