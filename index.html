@@ -317,16 +317,10 @@
     }
     function unfocus(element) {
       if (element !== focused_item && element !== selectedFocusUIControl) {
-        if (focused_item) {
-          focused_item.classList.remove("grabbing");
-          if (selectedFocusUIControl === null) {
-            removeFocusControls();
-            focused_item.classList.remove("focused");
-            focused_item = null;
-          }
-          if (selectedFocusUIControl !== null) {
-            selectedFocusUIControl.classList.remove("grabbing");
-          }
+        if (focused_item && selectedFocusUIControl == null) {
+          removeFocusControls();
+          focused_item.classList.remove("focused");
+          focused_item = null;
         }
         offsetForPointer = null;
       }
@@ -461,6 +455,7 @@
         content_area.appendChild(node);
         focused_item = e.target;
         focused_item.classList.add("focused");
+        focused_item.classList.add("grabbing");
         addFocusControls();
         alignFocusControls();
         const bbox = focused_item.getBoundingClientRect();
@@ -670,6 +665,10 @@
     function pointerUpHandler(e) {
       pointer_down = false;
       unfocus(e.target);
+      if (focused_item) focused_item.classList.remove("grabbing");
+      if (selectedFocusUIControl !== null) {
+        selectedFocusUIControl.classList.remove("grabbing");
+      }
       selectedFocusUIControl = null;
     }
     function getContentClipboard() {
@@ -734,7 +733,7 @@
     paste_btn.onclick = getContentClipboard;
     const add_txt_btn = document.getElementById("add-txt-btn");
     add_txt_btn.onclick = function () {
-      const svg = document.createElement();
+      const svg = document.createElementNS();
       content_area.appendChild();
     };
     document.addEventListener("paste", getContentClipboard);
