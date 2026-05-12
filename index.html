@@ -99,7 +99,7 @@
     let contentAreaMatrix = new DOMMatrix();
 
     let selectedFocusUIControl = null;
-    let diffFromCornerSelectedControl = null;
+    let offsetForPointer = null;
 
     function createFocusControls() {
       const scale1 = document.createElement("div");
@@ -172,7 +172,7 @@
         selectedFocusUIControl = scale1;
         const [, , , bottomRightCorner] = calculateCornersBasedOnRotation(scale1);
         const [bottomRightX, bottomRightY] = bottomRightCorner;
-        diffFromCornerSelectedControl = [e.clientX - bottomRightX, e.clientY - bottomRightY];
+        offsetForPointer = [e.clientX - bottomRightX, e.clientY - bottomRightY];
       };
       scale2.onpointerdown = (e) => {
         if (focused_item === null) {
@@ -181,7 +181,7 @@
         selectedFocusUIControl = scale2;
         const [, , bottomLeftCorner] = calculateCornersBasedOnRotation(scale2);
         const [bottomLeftX, bottomLeftY] = bottomLeftCorner;
-        diffFromCornerSelectedControl = [e.clientX - bottomLeftX, e.clientY - bottomLeftY];
+        offsetForPointer = [e.clientX - bottomLeftX, e.clientY - bottomLeftY];
       };
       scale3.onpointerdown = (e) => {
         if (focused_item === null) {
@@ -190,7 +190,7 @@
         selectedFocusUIControl = scale3;
         const [, topRightCorner] = calculateCornersBasedOnRotation(scale3);
         const [topRightX, topRightY] = topRightCorner;
-        diffFromCornerSelectedControl = [e.clientX - topRightX, e.clientY - topRightY];
+        offsetForPointer = [e.clientX - topRightX, e.clientY - topRightY];
       };
       scale4.onpointerdown = (e) => {
         if (focused_item === null) {
@@ -199,7 +199,7 @@
         selectedFocusUIControl = scale4;
         const [topLeftCorner] = calculateCornersBasedOnRotation(scale4);
         const [topLeftX, topLeftY] = topLeftCorner;
-        diffFromCornerSelectedControl = [e.clientX - topLeftX, e.clientY - topLeftY];
+        offsetForPointer = [e.clientX - topLeftX, e.clientY - topLeftY];
       };
       rotateFocusControl.onpointerdown = (e) => {
         if (focused_item === null) {
@@ -221,6 +221,7 @@
     }
 
     let focused_item = null;
+    let pointer_down = false;
 
     const contentItems = [];
 
@@ -266,8 +267,6 @@
       return angles.map((angle) => getXY(angle));
     }
 
-    let grabbed_item = null;
-    let focused_point_info = null;
     function addFocusControls() {
       const contentItemInfo = getContentItemInfo(focused_item);
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
@@ -317,17 +316,20 @@
       root.removeChild(rightFocusBorder);
     }
     function unfocus(e) {
-      if (e.target !== focused_item) {
-        if (focused_item && selectedFocusUIControl === null) {
-          removeFocusControls();
-          focused_item.classList.remove("focused");
-          focused_item = null;
-          grabbed_item = null;
+      if (e.target !== focused_item && e.target !== selectedFocusUIControl) {
+        if (focused_item) {
+          focused_item.classList.remove("grabbing");
+          if (selectedFocusUIControl === null) {
+            removeFocusControls();
+            focused_item.classList.remove("focused");
+            focused_item = null;
+          }
+          if (selectedFocusUIControl !== null) {
+            selectedFocusUIControl.classList.remove("grabbing");
+          }
         }
-        diffFromCornerSelectedControl = null;
+        offsetForPointer = null;
       }
-      focused_point_info = null;
-      selectedFocusUIControl = null;
     }
     function alignFocusControls() {
       if (focused_item !== null) {
@@ -377,8 +379,7 @@
           const yCenter = focus_control_bbox.y + focus_control_bbox.height / 2;
           const xPosForScale =
             (() => {
-              // the angles used in the switch case is to get the corner that is used to align the scale control
-              // properly
+              // the angles used in the switch case is to get the corner that is used to align the scale control properly
               switch (focus_control) {
                 case scale1:
                   return (
@@ -454,20 +455,19 @@
     }
     function setFocusedItem(e) {
       if (e.target.classList.contains("content-item")) {
+        pointer_down = true
         unfocus(e);
         const node = e.target.parentNode.removeChild(e.target);
         content_area.appendChild(node);
         focused_item = e.target;
         focused_item.classList.add("focused");
         addFocusControls();
-        grabbed_item = focused_item;
         alignFocusControls();
-        grabbed_item.classList.add("grabbing");
-        const bbox = grabbed_item.getBoundingClientRect();
-        focused_point_info = {
-          diff_x_from_center: e.clientX - (bbox.x + bbox.width / 2),
-          diff_y_from_center: e.clientY - (bbox.y + bbox.height / 2),
-        };
+        const bbox = focused_item.getBoundingClientRect();
+        offsetForPointer = [
+          e.clientX - (bbox.x + bbox.width / 2),
+          e.clientY - (bbox.y + bbox.height / 2),
+        ];
       }
     }
     function pointerDownHandler(e) {
@@ -477,22 +477,21 @@
       }
     }
     function moveGrabbedItem(e) {
-      if (focused_point_info === null || grabbed_item === null) {
+      if (pointer_down === false || selectedFocusUIControl !== null || offsetForPointer === null) {
         return;
       }
 
-      let grabbed_item_bbox = grabbed_item.getBoundingClientRect();
-      let { diff_x_from_center, diff_y_from_center } = focused_point_info;
+      let grabbed_item_bbox = focused_item.getBoundingClientRect();
 
       // this is the scaleX; also scaleY must be the same
       let content_area_scale = contentAreaMatrix.a;
 
-      const transform = getComputedStyle(grabbed_item).transform;
+      const transform = getComputedStyle(focused_item).transform;
       const matrix = new DOMMatrix(transform);
       const originX = grabbed_item_bbox.x + grabbed_item_bbox.width / 2;
       const originY = grabbed_item_bbox.y + grabbed_item_bbox.height / 2;
-      const tX = e.clientX - originX - diff_x_from_center;
-      const tY = e.clientY - originY - diff_y_from_center;
+      const tX = e.clientX - originX - offsetForPointer[0];
+      const tY = e.clientY - originY - offsetForPointer[1];
 
       /*
       the reason scaleX and scaleY is calculated like this below
@@ -517,24 +516,17 @@
       */
       const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
       const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
-      /*
-        ISSUE: if scaleX or scaleY is super low, the translates end up being insanely large...
-
-        also... i am starting to doubt the scaleX or scaleY value and logic from the chatgpt explanation
-      */
-      const translateXAmt = tX / content_area_scale / scaleX;
-      const translateYAmt = tY / content_area_scale / scaleY;
-      const hypot = Math.hypot(translateXAmt, translateYAmt);
+      const hypot = Math.hypot(tX, tY);
       const angle =
-        Math.acos(translateXAmt / hypot) * (translateYAmt === 0 ? 1 : Math.sign(translateYAmt));
+        Math.acos(tX / hypot) * (tY === 0 ? 1 : Math.sign(tY));
       const contentItemInfo = getContentItemInfo(focused_item);
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
       const angle_between = angle - contentItemInfo.focusItemRotation;
       const tx_amt = Math.cos(angle_between) * hypot;
       const ty_amt = Math.sin(angle_between) * hypot;
       if (tx_amt !== NaN && ty_amt !== NaN && isFinite(tx_amt) && isFinite(ty_amt)) {
-        matrix.translateSelf(tx_amt, ty_amt);
-        grabbed_item.style.transform = matrix.toString();
+        matrix.translateSelf(tx_amt / contentAreaMatrix.a / scaleX, ty_amt / contentAreaMatrix.a / scaleY);
+        focused_item.style.transform = matrix.toString();
       }
       alignFocusControls();
     }
@@ -624,8 +616,8 @@
           throw Error("scale_element is not any of the focus scale controls");
         }
         if ([scale1, scale2, scale3, scale4].includes(selectedFocusUIControl)) {
-          const eventX = e.clientX - diffFromCornerSelectedControl[0];
-          const eventY = e.clientY - diffFromCornerSelectedControl[1];
+          const eventX = e.clientX - offsetForPointer[0];
+          const eventY = e.clientY - offsetForPointer[1];
           const [scaleX, scaleY] = getScaling(eventX, eventY, selectedFocusUIControl);
           const [scaleOriginX, scaleOriginY] = getScaleOrigin(selectedFocusUIControl);
           matrix.scaleSelf(scaleX, scaleY, 1, scaleOriginX, scaleOriginY);
@@ -675,13 +667,9 @@
       moveGrabbedItem(e);
     }
     function pointerUpHandler(e) {
-      if (grabbed_item !== null) {
-        grabbed_item.classList.remove("grabbing");
-      }
-      if (selectedFocusUIControl !== null) {
-        selectedFocusUIControl.classList.remove("grabbing");
-      }
+      pointer_down = false;
       unfocus(e);
+      selectedFocusUIControl = null
     }
     function getContentClipboard() {
       navigator.clipboard.read().then((items) => {
