@@ -863,20 +863,20 @@
       });
     }
     function trySVGContentItemOrMakeText(t) {
-                  const d = new DOMParser();
-                  const parsedDocument = d.parseFromString(t, "image/svg+xml");
-                  if (!parsedDocument.querySelector("parsererror")) {
-                    const svg = parsedDocument.documentElement.outerHTML;
-                    const imageUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
-                    createNewImageContentItem(imageUrl);
-                  } else {
-                    if (focused_item && focused_item.classList.contains("text-content-item")) {
-                      focused_item.textContent += t;
-                    } else {
-                      addTextContentItem();
-                      focused_item.textContent = t;
-                    }
-                  }
+      const d = new DOMParser();
+      const parsedDocument = d.parseFromString(t, "image/svg+xml");
+      if (!parsedDocument.querySelector("parsererror")) {
+        const svg = parsedDocument.documentElement.outerHTML;
+        const imageUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+        createNewImageContentItem(imageUrl);
+      } else {
+        if (focused_item && focused_item.classList.contains("text-content-item")) {
+          focused_item.textContent += t;
+        } else {
+          addTextContentItem();
+          focused_item.textContent = t;
+        }
+      }
     }
     function getDataTransferContent(dataTransfer) {
       const file = dataTransfer.files[0];
@@ -886,7 +886,7 @@
       } else {
         // assuming that if no files, the user must've pasted a string
         if (dataTransfer.items[0]) {
-          dataTransfer.items[0].getAsString((t) => trySVGContentItemOrMakeText(t))
+          dataTransfer.items[0].getAsString((t) => trySVGContentItemOrMakeText(t));
         }
       }
     }
@@ -910,7 +910,7 @@
             if (text_plain_svg) {
               i.getType(text_plain_svg).then((blob) => {
                 blob.text().then((t) => {
-                  trySVGContentItemOrMakeText(t)
+                  trySVGContentItemOrMakeText(t);
                 });
               });
             }
@@ -1008,7 +1008,11 @@
             );
           }
         } else if (e.key.length === 1) {
-          if (focused_item && focused_item.firstChild && focused_item.firstChild.id === "highlight") {
+          if (
+            focused_item &&
+            focused_item.firstChild &&
+            focused_item.firstChild.id === "highlight"
+          ) {
             focused_item.firstChild.remove();
           }
           if (focused_item && focused_item.classList.contains("text-content-item")) {
