@@ -578,32 +578,6 @@
       if (e.target === selectedFocusUIControl) {
         selectedFocusUIControl.classList.add("grabbing");
       }
-      if (e.key) {
-        if (e.key === "Backspace") {
-          if (
-            focused_item &&
-            (focused_item.classList.contains("text-content-item") === undefined ||
-              focused_item.textContent === "")
-          ) {
-            content_area.removeChild(focused_item);
-            removeFocusControls();
-            const contentItemIdx = contentItems.findIndex(
-              (contentItem) => contentItem.item === focused_item,
-            );
-            contentItems.splice(contentItemIdx, 1);
-            focused_item = null;
-          } else if (focused_item && focused_item.classList.contains("text-content-item")) {
-            focused_item.textContent = focused_item.textContent.slice(
-              0,
-              focused_item.textContent.length - 1,
-            );
-          }
-        } else if (e.key.length === 1) {
-          if (focused_item && focused_item.classList.contains("text-content-item")) {
-            focused_item.textContent += e.key;
-          }
-        }
-      }
     }
     function moveGrabbedItem(e) {
       if (pointer_down === false || selectedFocusUIControl !== null || offsetForPointer === null) {
@@ -984,5 +958,33 @@
       },
       { passive: false },
     );
+    document.addEventListener("keydown", (e) => {
+      if (e.key) {
+        if (e.key === "Backspace") {
+          if (
+            focused_item &&
+            (focused_item.classList.contains("text-content-item") === undefined ||
+              focused_item.textContent === "")
+          ) {
+            content_area.removeChild(focused_item);
+            removeFocusControls();
+            const contentItemIdx = contentItems.findIndex(
+              (contentItem) => contentItem.item === focused_item,
+            );
+            contentItems.splice(contentItemIdx, 1);
+            focused_item = null;
+          } else if (focused_item && focused_item.classList.contains("text-content-item")) {
+            focused_item.textContent = focused_item.textContent.slice(
+              0,
+              focused_item.textContent.length - 1,
+            );
+          }
+        } else if (e.key.length === 1) {
+          if (focused_item && focused_item.classList.contains("text-content-item")) {
+            focused_item.textContent += e.key;
+          }
+        }
+      }
+    })
   </script>
 </html>
