@@ -9,39 +9,43 @@
 </head>
 <html>
   <body>
+    <div style="font-family: &quot;Times Roman&quot;; font-size: 50px"></div>
     <img id="img" width="800" height="800" />
-    <div style="font-family='Times Roman'"></div>
+    <input type="text" />
   </body>
   <script>
-    const img = document.querySelector("img")
-    const div = document.querySelector("div")
-    const keys = "abcdefghijklmnopqrstuvwxyz !@"
-    const offscreenCanvas = new OffscreenCanvas(500, 500)
-    const ctx = offscreenCanvas.getContext("2d")
-    let horizontal_pos = 0
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
-    svg.setAttribute("viewBox", "0 0 500 500")
-    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg")
-    document.onkeydown = (e) => {
-      if (keys.includes(e.key)) {
-        const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
-        text.setAttribute("font-family", "Times New Roman")
-        text.setAttribute("x", `${horizontal_pos}`)
-        text.setAttribute("y", "10")
-        text.setAttribute("fill", "black")
-        text.appendChild(document.createTextNode(e.key))
-        const size = ctx.measureText(e.key)
-        horizontal_pos += (size.actualBoundingBoxLeft + size.actualBoundingBoxRight)
-        svg.appendChild(text)
-      div.appendChild(document.createTextNode(e.key))
+    const img = document.querySelector("img");
+    const div = document.querySelector("div");
+    const inpt = document.querySelector("input");
+    const keys = "abcdefghijklmnopqrstuvwxyz !@";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "svg";
+    svg.style.width = "500px";
+    svg.style.height = "500px";
+    svg.setAttribute("viewBox", "0 0 500 500");
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    let str = "";
+    function handler(e) {
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("font-family", "Times New Roman");
+      text.setAttribute("font-size", "50px");
+      text.setAttribute("dominant-baseline", "hanging");
+      text.setAttribute("fill", "black");
+      if (keys.includes(e.key.toLowerCase())) {
+        str += e.key;
+        div.appendChild(document.createTextNode(e.key));
       } else if (e.key === "Backspace") {
-        console.log(svg.lastElementChild.textContent)
-        const size = ctx.measureText(svg.lastElementChild.textContent)
-        horizontal_pos -= (size.actualBoundingBoxLeft + size.actualBoundingBoxRight)
-        svg.lastElementChild.remove()
-      div.lastElementChild.remove()
+        str = str.slice(0, str.length - 1);
+        div.textContent = div.textContent.slice(0, div.textContent.length - 1);
       }
-      img.src = `data:image/svg+xml,${svg.outerHTML}`
+      svg.lastElementChild?.remove();
+      text.appendChild(document.createTextNode(str));
+      svg.appendChild(text);
+      document.getElementById("svg")?.remove();
+      document.body.prepend(svg);
+      img.src = `data:image/svg+xml,${svg.outerHTML}`;
     }
+    document.onkeydown = handler;
+    inpt.oninput = handler;
   </script>
 </html>
