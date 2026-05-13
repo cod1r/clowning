@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   </head>
   <style>
     * {
@@ -20,7 +20,6 @@
       overflow: hidden;
     }
     button {
-      padding: 8px;
       border: 2px solid black;
       border-radius: 5px;
       cursor: pointer;
@@ -120,6 +119,8 @@
           style="border-radius: 3px; border: none; box-shadow: grey 0 3px 2px"
         >
           <div style="display: flex; flex-direction: column">
+            <label for="text-value">text value:</label>
+            <input id="text-value" type="text" name="text-value" />
             <label for="text-font-size">font size:</label>
             <input
               id="text-font-size"
@@ -144,8 +145,8 @@
               id="text-font-background"
               type="range"
               min="0"
-              max="16777215"
-              value="16777215"
+              max="16777216"
+              value="16777216"
               name="background-color"
               disabled
             />
@@ -158,12 +159,15 @@
   <script>
     const root = document.querySelector(".root");
     const content_area = document.querySelector(".content-area");
+    const paste_btn = document.getElementById("paste-btn");
+    const add_txt_btn = document.getElementById("add-txt-btn");
     const textContentItemFontSize = document.getElementById("text-font-size");
     const textContentItemFontColor = document.getElementById("text-font-color");
     const textContentItemBackgroundColor = document.getElementById("text-font-background");
     const textControls = document.getElementById("text-controls");
     const textControlsMenu = document.getElementById("text-controls-menu");
     const textControlsMenuChildren = document.querySelectorAll("#text-controls-menu input");
+    const textValue = document.getElementById("text-value")
     let contentAreaMatrix = new DOMMatrix();
 
     let selectedFocusUIControl = null;
@@ -563,9 +567,42 @@
       }
     }
     function pointerDownHandler(e) {
+      if (
+textControls.contains(e.target) ||
+textControlsMenu.contains(e.target) ||
+        textControls.contains(document.activeElement) ||
+        textControlsMenu.contains(document.activeElement)
+      )
+        return;
       setFocusedItem(e);
       if (e.target === selectedFocusUIControl) {
         selectedFocusUIControl.classList.add("grabbing");
+      }
+      if (e.key) {
+        if (e.key === "Backspace") {
+          if (
+            focused_item &&
+            (focused_item.classList.contains("text-content-item") === undefined ||
+              focused_item.textContent === "")
+          ) {
+            content_area.removeChild(focused_item);
+            removeFocusControls();
+            const contentItemIdx = contentItems.findIndex(
+              (contentItem) => contentItem.item === focused_item,
+            );
+            contentItems.splice(contentItemIdx, 1);
+            focused_item = null;
+          } else if (focused_item && focused_item.classList.contains("text-content-item")) {
+            focused_item.textContent = focused_item.textContent.slice(
+              0,
+              focused_item.textContent.length - 1,
+            );
+          }
+        } else if (e.key.length === 1) {
+          if (focused_item && focused_item.classList.contains("text-content-item")) {
+            focused_item.textContent += e.key;
+          }
+        }
       }
     }
     function moveGrabbedItem(e) {
@@ -770,6 +807,8 @@
     }
     function pointerUpHandler(e) {
       if (
+textControls.contains(e.target) ||
+textControlsMenu.contains(e.target) ||
         textControls.contains(document.activeElement) ||
         textControlsMenu.contains(document.activeElement)
       )
@@ -794,14 +833,23 @@
     };
     textContentItemBackgroundColor.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        focused_item.style.backgroundColor = `#${parseInt(e.target.value).toString(16).padStart(6, "0")}`;
+        const value = parseInt(e.target.value)
+        if (value === parseInt("ffffff", 16) + 1) {
+          focused_item.style.backgroundColor = `transparent`;
+        } else {
+          focused_item.style.backgroundColor = `#${value.toString(16).padStart(6, "0")}`;
+        }
+      }
+    };
+    textValue.oninput = (e) => {
+      if (focused_item && focused_item.classList.contains("text-content-item")) {
+        focused_item.textContent = e.target.value;
       }
     };
     function addTextContentItem() {
       const div = document.createElement("div");
       div.classList.add("content-item");
       div.classList.add("text-content-item");
-      div.setAttribute("isTextContentItem", "true");
       div.appendChild(document.createTextNode("example text"));
       div.style.width = "100px";
       div.style.height = "100px";
@@ -882,9 +930,7 @@
         });
       });
     }
-    const paste_btn = document.getElementById("paste-btn");
     paste_btn.onclick = getContentClipboard;
-    const add_txt_btn = document.getElementById("add-txt-btn");
     add_txt_btn.onclick = addTextContentItem;
     document.addEventListener("paste", getContentClipboard);
     document.addEventListener("pointermove", pointerMoveHandler);
@@ -938,32 +984,5 @@
       },
       { passive: false },
     );
-    document.addEventListener("keydown", (e) => {
-      document.activeElement.blur();
-      if (e.key === "Backspace") {
-        if (
-          focused_item &&
-          (focused_item.classList.contains("text-content-item") === undefined ||
-            focused_item.textContent === "")
-        ) {
-          content_area.removeChild(focused_item);
-          removeFocusControls();
-          const contentItemIdx = contentItems.findIndex(
-            (contentItem) => contentItem.item === focused_item,
-          );
-          contentItems.splice(contentItemIdx, 1);
-          focused_item = null;
-        } else if (focused_item && focused_item.classList.contains("text-content-item")) {
-          focused_item.textContent = focused_item.textContent.slice(
-            0,
-            focused_item.textContent.length - 1,
-          );
-        }
-      } else if (e.key.length === 1) {
-        if (focused_item && focused_item.classList.contains("text-content-item")) {
-          focused_item.textContent += e.key;
-        }
-      }
-    });
   </script>
 </html>
