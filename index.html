@@ -932,7 +932,7 @@
         let clipboardData;
         if (focused_item.src.startsWith("data:image/svg+xml;base64")) {
           clipboardData = {
-            "text/plain": atob(focused_item.src.slice("data:image/svg+xml;base64".length + 1)),
+            "text/plain": atob(focused_item.src.slice("data:image/svg+xml;base64,".length)),
           };
         } else {
           // using width and height properties here because the focused_item in this context should
