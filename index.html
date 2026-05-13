@@ -567,7 +567,7 @@
       }
     }
     // TODO: i need to implement mobile browser logic so pinching and zooming will scale things appropriately
-    const pointerDownEvts = []
+    const pointerDownEvts = [];
     function pointerDownHandler(e) {
       if (
         textControls.contains(e.target) ||
@@ -844,16 +844,7 @@
       addFocusControls();
       alignFocusControls();
     }
-    function getContentClipboard() {
-      navigator.clipboard.read().then((items) => {
-        const images = items.filter((i) => {
-          return i.types.some((t) => t.includes("image") || t.includes("text"));
-        });
-        images.forEach((i) => {
-          const image_mime_type = i.types.find((t) => t.includes("image"));
-          if (image_mime_type) {
-            i.getType(image_mime_type).then((blob) => {
-              const imageUrl = URL.createObjectURL(blob);
+    function createNewImageContentItem(imageUrl) {
               const img = new Image();
               img.classList.add("content-item");
               img.src = imageUrl;
@@ -868,47 +859,61 @@
                 focused_item = img;
                 content_area.appendChild(img);
               });
-            });
-          }
-          const text_plain_svg = i.types.find((t) => t === "text/plain");
-          if (text_plain_svg) {
-            i.getType(text_plain_svg).then((blob) => {
-              blob.text().then((t) => {
-                const d = new DOMParser();
-                const parsedDocument = d.parseFromString(t, "image/svg+xml");
-                if (!parsedDocument.querySelector("parsererror")) {
-                  const svg = parsedDocument.documentElement.outerHTML;
-                  const img = new Image();
-                  img.classList.add("content-item");
-                  img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
-                  img.draggable = false;
-                  img.decode().then(() => {
-                    if (focused_item) removeFocusControls();
-                    contentItems.push({
-                      item: img,
-                      focusItemRotation: 0,
-                      controls: createFocusControls(),
-                    });
-                    focused_item = img;
-                    content_area.appendChild(img);
-                  });
-                } else {
-                  if (focused_item && focused_item.classList.contains("text-content-item")) {
-                    focused_item.textContent += t;
-                  } else {
-                    addTextContentItem();
-                    focused_item.textContent = t;
-                  }
-                }
-              });
-            });
-          }
-        });
-      });
     }
-    paste_btn.onclick = getContentClipboard;
+    function getDataTransferContent(dataTransfer) {
+      const file = dataTransfer.files[0]
+      if (file) {
+        const imageUrl = URL.createObjectURL(file)
+        createNewImageContentItem(imageUrl)
+      }
+    }
+    function getContentClipboardOrDrop(e) {
+      if (e.clipboardData || e.dataTransfer) {
+        getDataTransferContent(e.clipboardData || e.dataTransfer)
+      } else {
+        navigator.clipboard.read().then((items) => {
+          const images = items.filter((i) => {
+            return i.types.some((t) => t.includes("image") || t.includes("text"));
+          });
+          images.forEach((i) => {
+            const image_mime_type = i.types.find((t) => t.includes("image"));
+            if (image_mime_type) {
+              i.getType(image_mime_type).then((blob) => {
+                const imageUrl = URL.createObjectURL(blob);
+                createNewImageContentItem(imageUrl)
+              });
+            }
+            const text_plain_svg = i.types.find((t) => t === "text/plain");
+            if (text_plain_svg) {
+              i.getType(text_plain_svg).then((blob) => {
+                blob.text().then((t) => {
+                  const d = new DOMParser();
+                  const parsedDocument = d.parseFromString(t, "image/svg+xml");
+                  if (!parsedDocument.querySelector("parsererror")) {
+                    const svg = parsedDocument.documentElement.outerHTML;
+                    const imageUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+                    createNewImageContentItem(imageUrl)
+                  } else {
+                    if (focused_item && focused_item.classList.contains("text-content-item")) {
+                      focused_item.textContent += t;
+                    } else {
+                      addTextContentItem();
+                      focused_item.textContent = t;
+                    }
+                  }
+                });
+              });
+            }
+          });
+        });
+      }
+    }
+    paste_btn.onclick = getContentClipboardOrDrop;
     add_txt_btn.onclick = addTextContentItem;
-    document.addEventListener("paste", getContentClipboard);
+    window.addEventListener("drop", (e) => e.preventDefault())
+    document.addEventListener("drop", getContentClipboardOrDrop)
+    document.addEventListener("dragover", (e) => e.preventDefault())
+    document.addEventListener("paste", getContentClipboardOrDrop);
     document.addEventListener("pointermove", pointerMoveHandler);
     document.addEventListener("pointerup", pointerUpHandler);
     document.addEventListener("pointerdown", pointerDownHandler);
