@@ -167,7 +167,7 @@
     const textControls = document.getElementById("text-controls");
     const textControlsMenu = document.getElementById("text-controls-menu");
     const textControlsMenuChildren = document.querySelectorAll("#text-controls-menu input");
-    const textValue = document.getElementById("text-value")
+    const textValue = document.getElementById("text-value");
     let contentAreaMatrix = new DOMMatrix();
 
     let selectedFocusUIControl = null;
@@ -568,8 +568,8 @@
     }
     function pointerDownHandler(e) {
       if (
-textControls.contains(e.target) ||
-textControlsMenu.contains(e.target) ||
+        textControls.contains(e.target) ||
+        textControlsMenu.contains(e.target) ||
         textControls.contains(document.activeElement) ||
         textControlsMenu.contains(document.activeElement)
       )
@@ -807,8 +807,8 @@ textControlsMenu.contains(e.target) ||
     }
     function pointerUpHandler(e) {
       if (
-textControls.contains(e.target) ||
-textControlsMenu.contains(e.target) ||
+        textControls.contains(e.target) ||
+        textControlsMenu.contains(e.target) ||
         textControls.contains(document.activeElement) ||
         textControlsMenu.contains(document.activeElement)
       )
@@ -833,7 +833,7 @@ textControlsMenu.contains(e.target) ||
     };
     textContentItemBackgroundColor.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        const value = parseInt(e.target.value)
+        const value = parseInt(e.target.value);
         if (value === parseInt("ffffff", 16) + 1) {
           focused_item.style.backgroundColor = `transparent`;
         } else {
