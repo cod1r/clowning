@@ -404,6 +404,8 @@
     function unfocus(element) {
       if (element !== focused_item && element !== selectedFocusUIControl) {
         if (focused_item && selectedFocusUIControl == null) {
+          const highlight = document.getElementById("highlight")
+          if (focused_item.contains(highlight)) focused_item.innerHTML = focused_item.textContent
           if (focused_item.classList.contains("text-content-item"))
             textControlsMenuChildren.forEach((child) => (child.disabled = true));
           removeFocusControls();
@@ -967,9 +969,19 @@
       { passive: false },
     );
     document.addEventListener("keydown", (e) => {
+      // preventing default select all behavior
+      if (e.key === 'a' && e.metaKey) {
+        e.preventDefault()
+        if (focused_item && focused_item.classList.contains('text-content-item')) {
+          focused_item.innerHTML = `<div id="highlight" style="background-color: lightblue; pointer-events: none">${focused_item.textContent}</div>`
+        }
+        return
+      }
       if (e.key) {
         if (e.key === "Backspace") {
-          if (
+          if (focused_item.firstChild && focused_item.firstChild.id === "highlight") {
+            focused_item.firstChild.remove()
+          } else if (
             focused_item &&
             (focused_item.classList.contains("text-content-item") === undefined ||
               focused_item.textContent === "")
@@ -988,6 +1000,9 @@
             );
           }
         } else if (e.key.length === 1) {
+          if (focused_item.firstChild && focused_item.firstChild.id === "highlight") {
+            focused_item.firstChild.remove()
+          }
           if (focused_item && focused_item.classList.contains("text-content-item")) {
             focused_item.textContent += e.key;
           }
