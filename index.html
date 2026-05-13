@@ -566,6 +566,8 @@
         ];
       }
     }
+    // TODO: i need to implement mobile browser logic so pinching and zooming will scale things appropriately
+    const pointerDownEvts = []
     function pointerDownHandler(e) {
       if (
         textControls.contains(e.target) ||
@@ -985,6 +987,6 @@
           }
         }
       }
-    })
+    });
   </script>
 </html>
