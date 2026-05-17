@@ -422,7 +422,15 @@
         ctx.beginPath();
         ctx.fillStyle = "rgba(255 255 255 / 1)";
         ctx.strokeStyle = "rgba(255 255 255 / 1)";
-        ctx.ellipse(x_pos, y_pos, 50 / scaleX / contentAreaMatrix.a / devicePixelRatio, 50 / scaleY / contentAreaMatrix.a / devicePixelRatio, 0, 0, Math.PI * 2);
+        ctx.ellipse(
+          x_pos,
+          y_pos,
+          50 / scaleX / contentAreaMatrix.a / devicePixelRatio,
+          50 / scaleY / contentAreaMatrix.a / devicePixelRatio,
+          0,
+          0,
+          Math.PI * 2,
+        );
         ctx.fill();
         ctx.closePath();
         ctx.stroke();
