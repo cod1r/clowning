@@ -418,12 +418,11 @@
         const angle_between = angle - contentItemInfo.focusItemRotation;
         const x_pos = (Math.cos(angle_between) * dist) / contentAreaMatrix.a / scaleX;
         const y_pos = (Math.sin(angle_between) * dist) / contentAreaMatrix.a / scaleY;
-        console.log(x_pos, y_pos);
         ctx.globalCompositeOperation = "destination-out";
         ctx.beginPath();
         ctx.fillStyle = "rgba(255 255 255 / 1)";
         ctx.strokeStyle = "rgba(255 255 255 / 1)";
-        ctx.ellipse(x_pos, y_pos, 50 / scaleX, 50 / scaleY, 0, 0, Math.PI * 2);
+        ctx.ellipse(x_pos, y_pos, 50 / scaleX / contentAreaMatrix.a / devicePixelRatio, 50 / scaleY / contentAreaMatrix.a / devicePixelRatio, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.closePath();
         ctx.stroke();
