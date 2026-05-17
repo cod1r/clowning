@@ -90,18 +90,45 @@
       <div class="toolbar">
         <button id="paste-btn">paste</button>
         <button id="add-txt-btn">add text</button>
-        <button id="eraser-control"
+        <button
+          id="eraser-control"
           style="display: flex; justify-content: center; align-items: center"
         >
-          <div style="width: 20px; height: 20px; background-color: #AA336A; border-top-left-radius: 5px; border-bottom-left-radius: 5px; pointer-events: none"></div>
-          <div style="width: 20px; height: 20px; background-color: #ffffdd; border-top-right-radius: 5px; border-bottom-right-radius: 5px; pointer-events: none"></div>
+          <div
+            style="
+              width: 20px;
+              height: 20px;
+              background-color: #aa336a;
+              border-top-left-radius: 5px;
+              border-bottom-left-radius: 5px;
+              pointer-events: none;
+            "
+          ></div>
+          <div
+            style="
+              width: 20px;
+              height: 20px;
+              background-color: #ffffdd;
+              border-top-right-radius: 5px;
+              border-bottom-right-radius: 5px;
+              pointer-events: none;
+            "
+          ></div>
         </button>
         <button
           id="text-controls"
           popovertarget="text-controls-menu"
           style="display: flex; justify-content: center; align-items: center; padding: 10px"
         >
-          <div style="width: 20px; height: 20px; background-color: black; clip-path: polygon(0% 0%, 100% 0%, 50% 100%, 0% 0%); pointer-events: none"></div>
+          <div
+            style="
+              width: 20px;
+              height: 20px;
+              background-color: black;
+              clip-path: polygon(0% 0%, 100% 0%, 50% 100%, 0% 0%);
+              pointer-events: none;
+            "
+          ></div>
         </button>
         <div
           popover
@@ -153,28 +180,28 @@
     const add_txt_btn = document.getElementById("add-txt-btn");
     const eraserControl = document.getElementById("eraser-control");
     let eraserEnabled = false;
-    const eraser = document.createElement("div")
-    eraser.style.width = "50px"
-    eraser.style.height = "50px"
-    eraser.style.position = "absolute"
-    eraser.style.borderRadius = "100%"
-    eraser.style.backgroundColor = "#AA336A"
-    eraser.style.cursor = "grabbing"
+    const eraser = document.createElement("div");
+    eraser.style.width = "50px";
+    eraser.style.height = "50px";
+    eraser.style.position = "absolute";
+    eraser.style.borderRadius = "100%";
+    eraser.style.backgroundColor = "#AA336A";
+    eraser.style.cursor = "grabbing";
     eraserControl.onclick = (e) => {
-      eraserEnabled = !eraserEnabled
+      eraserEnabled = !eraserEnabled;
       if (eraserEnabled) {
-        root.appendChild(eraser)
+        root.appendChild(eraser);
       } else {
-        eraser.remove()
+        eraser.remove();
       }
     };
     function moveEraser(e) {
-      const {x,y,width,height} = eraser.getBoundingClientRect()
-      const xCenter = x + width /2
-      const yCenter = y + height / 2
-      const matrix = new DOMMatrix(getComputedStyle(eraser).transform)
-      matrix.translateSelf(e.clientX - xCenter, e.clientY - yCenter)
-      eraser.style.transform = matrix.toString()
+      const { x, y, width, height } = eraser.getBoundingClientRect();
+      const xCenter = x + width / 2;
+      const yCenter = y + height / 2;
+      const matrix = new DOMMatrix(getComputedStyle(eraser).transform);
+      matrix.translateSelf(e.clientX - xCenter, e.clientY - yCenter);
+      eraser.style.transform = matrix.toString();
     }
     const textContentItemFontSize = document.getElementById("text-font-size");
     const textContentItemFontColor = document.getElementById("text-font-color");
@@ -368,33 +395,38 @@
       return angles.map((angle) => getXY(angle));
     }
     function actuallyErase(e) {
-      if (erasing && eraserEnabled && focused_item && !focused_item.classList.contains('text-content-item')) {
-        const [widthvalue, heightvalue] = getFocusItemWidthHeight()
+      if (
+        erasing &&
+        eraserEnabled &&
+        focused_item &&
+        !focused_item.classList.contains("text-content-item")
+      ) {
+        const [widthvalue, heightvalue] = getFocusItemWidthHeight();
         const contentItemInfo = getContentItemInfo(focused_item);
-        const canvas = contentItemInfo.canvas
+        const canvas = contentItemInfo.canvas;
         //canvas.width = widthvalue
         //canvas.height = heightvalue
-        const ctx = contentItemInfo.drawContext
-        const [topLeft] = calculateCornersBasedOnRotation(focused_item)
+        const ctx = contentItemInfo.drawContext;
+        const [topLeft] = calculateCornersBasedOnRotation(focused_item);
         const matrix = new DOMMatrix(getComputedStyle(focused_item).transform);
         const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
         const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
-        const xDiff = e.clientX - topLeft[0]
-        const yDiff = e.clientY - topLeft[1]
-        const dist = Math.hypot(xDiff, yDiff)
-        const angle = Math.acos(xDiff / dist) * (yDiff === 0 ? 1 : Math.sign(yDiff))
-        const angle_between = angle - contentItemInfo.focusItemRotation
-        const x_pos = Math.cos(angle_between) * dist / contentAreaMatrix.a / scaleX
-        const y_pos = Math.sin(angle_between) * dist / contentAreaMatrix.a / scaleY
-        console.log(x_pos, y_pos)
+        const xDiff = e.clientX - topLeft[0];
+        const yDiff = e.clientY - topLeft[1];
+        const dist = Math.hypot(xDiff, yDiff);
+        const angle = Math.acos(xDiff / dist) * (yDiff === 0 ? 1 : Math.sign(yDiff));
+        const angle_between = angle - contentItemInfo.focusItemRotation;
+        const x_pos = (Math.cos(angle_between) * dist) / contentAreaMatrix.a / scaleX;
+        const y_pos = (Math.sin(angle_between) * dist) / contentAreaMatrix.a / scaleY;
+        console.log(x_pos, y_pos);
         ctx.globalCompositeOperation = "destination-out";
-        ctx.beginPath()
-        ctx.fillStyle = "rgba(255 255 255 / 1)"
-        ctx.strokeStyle = "rgba(255 255 255 / 1)"
-        ctx.ellipse(x_pos, y_pos, 50 / scaleX, 50 / scaleY, 0, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.closePath()
-        ctx.stroke()
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(255 255 255 / 1)";
+        ctx.strokeStyle = "rgba(255 255 255 / 1)";
+        ctx.ellipse(x_pos, y_pos, 50 / scaleX, 50 / scaleY, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.closePath();
+        ctx.stroke();
         ctx.globalCompositeOperation = "source-over";
       }
     }
@@ -619,7 +651,7 @@
     const pointerDownEvts = [];
     function pointerDownHandler(e) {
       erasing = true;
-      actuallyErase(e)
+      actuallyErase(e);
       if (
         textControls.contains(e.target) ||
         textControlsMenu.contains(e.target) ||
@@ -634,7 +666,12 @@
       }
     }
     function moveGrabbedItem(e) {
-      if (pointer_down === false || selectedFocusUIControl !== null || offsetForPointer === null || eraserEnabled) {
+      if (
+        pointer_down === false ||
+        selectedFocusUIControl !== null ||
+        offsetForPointer === null ||
+        eraserEnabled
+      ) {
         return;
       }
 
@@ -830,7 +867,7 @@
       }
     }
     function pointerMoveHandler(e) {
-      actuallyErase(e)
+      actuallyErase(e);
       moveFocusUIControl(e);
       moveGrabbedItem(e);
       moveEraser(e);
@@ -904,25 +941,28 @@
     function createNewImageContentItem(imageUrl) {
       const img = new Image();
       img.src = imageUrl;
-      img.decode().then(() => {
-        if (focused_item) removeFocusControls();
-        const canvas = document.createElement("canvas")
-        canvas.width = img.width
-        canvas.height = img.height
-        canvas.classList.add('content-item')
-        canvas.draggable = false;
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0)
-        contentItems.push({
-          item: canvas,
-          focusItemRotation: 0,
-          controls: createFocusControls(),
-          canvas,
-          drawContext: ctx
-        });
-        focused_item = canvas;
-        content_area.appendChild(canvas);
-      }).catch(e => console.error(e));
+      img
+        .decode()
+        .then(() => {
+          if (focused_item) removeFocusControls();
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          canvas.classList.add("content-item");
+          canvas.draggable = false;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          contentItems.push({
+            item: canvas,
+            focusItemRotation: 0,
+            controls: createFocusControls(),
+            canvas,
+            drawContext: ctx,
+          });
+          focused_item = canvas;
+          content_area.appendChild(canvas);
+        })
+        .catch((e) => console.error(e));
     }
     function trySVGContentItemOrMakeText(t) {
       const d = new DOMParser();
@@ -947,7 +987,7 @@
         createNewImageContentItem(imageUrl);
       } else {
         // assuming that if no files, the user must've pasted a string
-        const idxOfTxtPlain = dataTransfer.types.indexOf("text/plain")
+        const idxOfTxtPlain = dataTransfer.types.indexOf("text/plain");
         if (dataTransfer.items[idxOfTxtPlain]) {
           dataTransfer.items[idxOfTxtPlain].getAsString((t) => trySVGContentItemOrMakeText(t));
         }
@@ -995,7 +1035,7 @@
         // using width and height properties here because the focused_item in this context should
         // always be an image content item
         const { canvas } = getContentItemInfo(focused_item);
-        canvas.toBlob(async blob => {
+        canvas.toBlob(async (blob) => {
           let clipboardData = { "image/png": blob };
           await navigator.clipboard.write([new ClipboardItem(clipboardData)]);
         });
