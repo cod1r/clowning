@@ -480,12 +480,12 @@
       if (root.contains(scale1)) root.removeChild(scale1);
       if (root.contains(scale2)) root.removeChild(scale2);
       if (root.contains(scale3)) root.removeChild(scale3);
-      root.removeChild(scale4);
-      root.removeChild(rotateFocusControl);
-      root.removeChild(topFocusBorder);
-      root.removeChild(bottomFocusBorder);
-      root.removeChild(leftFocusBorder);
-      root.removeChild(rightFocusBorder);
+      if (root.contains(scale4)) root.removeChild(scale4);
+      if (root.contains(rotateFocusControl)) root.removeChild(rotateFocusControl);
+      if (root.contains(topFocusBorder)) root.removeChild(topFocusBorder);
+      if (root.contains(bottomFocusBorder)) root.removeChild(bottomFocusBorder);
+      if (root.contains(leftFocusBorder)) root.removeChild(leftFocusBorder);
+      if (root.contains(rightFocusBorder)) root.removeChild(rightFocusBorder);
     }
     function unfocus(element) {
       if (element !== focused_item && element !== selectedFocusUIControl) {
@@ -1004,28 +1004,31 @@
       if (e.clipboardData || e.dataTransfer) {
         getDataTransferContent(e.clipboardData || e.dataTransfer);
       } else {
-        navigator.clipboard.read().then((items) => {
-          const images = items.filter((i) => {
-            return i.types.some((t) => t.includes("image") || t.includes("text"));
-          });
-          images.forEach((i) => {
-            const image_mime_type = i.types.find((t) => t.includes("image"));
-            if (image_mime_type) {
-              i.getType(image_mime_type).then((blob) => {
-                const imageUrl = URL.createObjectURL(blob);
-                createNewImageContentItem(imageUrl);
-              });
-            }
-            const text_plain_svg = i.types.find((t) => t === "text/plain");
-            if (text_plain_svg) {
-              i.getType(text_plain_svg).then((blob) => {
-                blob.text().then((t) => {
-                  trySVGContentItemOrMakeText(t);
+        navigator.clipboard
+          .read()
+          .then((items) => {
+            const images = items.filter((i) => {
+              return i.types.some((t) => t.includes("image") || t.includes("text"));
+            });
+            images.forEach((i) => {
+              const image_mime_type = i.types.find((t) => t.includes("image"));
+              if (image_mime_type) {
+                i.getType(image_mime_type).then((blob) => {
+                  const imageUrl = URL.createObjectURL(blob);
+                  createNewImageContentItem(imageUrl);
                 });
-              });
-            }
-          });
-        });
+              }
+              const text_plain_svg = i.types.find((t) => t === "text/plain");
+              if (text_plain_svg) {
+                i.getType(text_plain_svg).then((blob) => {
+                  blob.text().then((t) => {
+                    trySVGContentItemOrMakeText(t);
+                  });
+                });
+              }
+            });
+          })
+          .catch((e) => console.error(e));
       }
     }
     paste_btn.onclick = getContentClipboardOrDrop;
@@ -1088,7 +1091,11 @@
       }
       if (e.key) {
         if (e.key === "Backspace") {
-          if (focused_item && focused_item.firstChild && focused_item.firstChild.id === "highlight") {
+          if (
+            focused_item &&
+            focused_item.firstChild &&
+            focused_item.firstChild.id === "highlight"
+          ) {
             focused_item.firstChild.remove();
           } else if (
             focused_item &&
