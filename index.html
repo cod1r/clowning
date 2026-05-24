@@ -39,6 +39,7 @@
       -webkit-touch-callout: none;
     }
     .text-content-item {
+      /* these styles dont mean anything on a canvas lmao, im just using this class to know if it's a text content item */
       overflow-wrap: break-word;
       font-family: "Impact";
     }
@@ -733,19 +734,6 @@
       }
       alignFocusControls();
     }
-    function transformToRotatedCoordinates(control_bbox, x, y, rotation_angle) {
-      const controlXCenter = control_bbox.x + control_bbox.width / 2;
-      const controlYCenter = control_bbox.y + control_bbox.height / 2;
-      const diffX = x - controlXCenter;
-      const diffY = y - controlYCenter;
-      const dist = Math.hypot(diffX, diffY);
-      const angle = Math.acos(diffX / dist) * (diffY === 0 ? 1 : Math.sign(diffY));
-      const angle_between = angle - rotation_angle;
-      return [
-        Math.cos(angle_between) * dist + controlXCenter,
-        Math.sin(angle_between) * dist + controlYCenter,
-      ];
-    }
     function moveFocusUIControl(e) {
       if (selectedFocusUIControl !== null) {
         const transform = getComputedStyle(focused_item).transform;
@@ -825,11 +813,23 @@
           const eventX = e.clientX - offsetForPointer[0];
           const eventY = e.clientY - offsetForPointer[1];
           const [scaleX, scaleY] = getScaling(eventX, eventY, selectedFocusUIControl);
-          const [scaleOriginX, scaleOriginY] = getScaleOrigin(selectedFocusUIControl);
-          if (focused_item.classList.contains("text-content-item")) {
-            focused_item.style.width = `${Math.max(10, widthvalue * scaleX)}px`;
-            focused_item.style.height = `${Math.max(10, heightvalue * scaleY)}px`;
+          if (focused_item && focused_item.classList.contains("text-content-item")) {
+            const [topLeftX, topLeftY] = topLeftCorner
+            focused_item.width = `${Math.max(10, widthvalue * scaleX)}`
+            focused_item.height = `${Math.max(10, heightvalue * scaleY)}`
+            const [newTopLeftCorner] = calculateCornersBasedOnRotation(focused_item)
+            const xDiff = topLeftX - newTopLeftCorner[0]
+            const yDiff = topLeftY - newTopLeftCorner[1]
+            const dist = Math.hypot(topLeftX - newTopLeftCorner[0], topLeftY - newTopLeftCorner[1])
+            if (dist !== 0) {
+              const angle = Math.acos(xDiff / dist) * (yDiff === 0 ? 1 : Math.sign(yDiff))
+              const angle_between = angle - contentItemInfo.focusItemRotation
+              const x_trans = Math.cos(angle_between) * dist
+              const y_trans = Math.sin(angle_between) * dist
+              matrix.translateSelf(x_trans, y_trans)
+            }
           } else {
+            const [scaleOriginX, scaleOriginY] = getScaleOrigin(selectedFocusUIControl);
             matrix.scaleSelf(scaleX, scaleY, 1, scaleOriginX, scaleOriginY);
           }
         } else if (selectedFocusUIControl === rotateFocusControl) {
@@ -905,42 +905,42 @@
     };
     textContentItemFontColor.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        focused_item.style.color = `#${parseInt(e.target.value).toString(16).padStart(6, "0")}`;
+        `#${parseInt(e.target.value).toString(16).padStart(6, "0")}`;
       }
     };
     textContentItemBackgroundColor.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
         const value = parseInt(e.target.value);
         if (value === parseInt("ffffff", 16) + 1) {
-          focused_item.style.backgroundColor = `transparent`;
         } else {
-          focused_item.style.backgroundColor = `#${value.toString(16).padStart(6, "0")}`;
         }
       }
     };
     textValue.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        focused_item.textContent = e.target.value;
       }
     };
     function addTextContentItem() {
-      const div = document.createElement("div");
-      div.classList.add("content-item");
-      div.classList.add("text-content-item");
-      div.appendChild(document.createTextNode("example text"));
-      div.style.width = "100px";
-      div.style.height = "100px";
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")
+      canvas.classList.add("content-item");
+      canvas.classList.add("text-content-item");
+      canvas.appendChild(document.createTextNode("example text"));
+      canvas.width = "100";
+      canvas.height = "100";
       if (focused_item) removeFocusControls();
       contentItems.push({
-        item: div,
+        item: canvas,
         focusItemRotation: 0,
         controls: createFocusControls(),
+        canvas,
+        drawingContext: ctx,
+        textContent: ""
       });
-      focused_item = div;
-      focused_item.style.fontSize = `${textContentItemFontSize.value}px`;
+      focused_item = canvas;
       focused_item.classList.add("focused");
       focused_item.classList.add("grabbing");
-      content_area.appendChild(div);
+      content_area.appendChild(canvas);
       textControlsMenuChildren.forEach((child) => (child.disabled = false));
       addFocusControls();
       alignFocusControls();
@@ -980,10 +980,8 @@
         createNewImageContentItem(imageUrl);
       } else {
         if (focused_item && focused_item.classList.contains("text-content-item")) {
-          focused_item.textContent += t;
         } else {
           addTextContentItem();
-          focused_item.textContent = t;
         }
       }
     }
