@@ -400,14 +400,11 @@
       if (
         erasing &&
         eraserEnabled &&
-        focused_item &&
-        !focused_item.classList.contains("text-content-item")
+        focused_item
       ) {
         const [widthvalue, heightvalue] = getFocusItemWidthHeight();
-        const contentItemInfo = getContentItemInfo(focused_item);
+        const contentItemInfo = getContentItemInfo();
         const canvas = contentItemInfo.canvas;
-        //canvas.width = widthvalue
-        //canvas.height = heightvalue
         const ctx = contentItemInfo.drawContext;
         const [topLeft] = calculateCornersBasedOnRotation(focused_item);
         const matrix = new DOMMatrix(getComputedStyle(focused_item).transform);
@@ -830,8 +827,8 @@
               const x_trans = Math.cos(angle_between) * dist;
               const y_trans = Math.sin(angle_between) * dist;
               matrix.translateSelf(x_trans, y_trans);
-              drawText("")
             }
+            drawText("")
           } else {
             const [scaleOriginX, scaleOriginY] = getScaleOrigin(selectedFocusUIControl);
             matrix.scaleSelf(scaleX, scaleY, 1, scaleOriginX, scaleOriginY);
@@ -904,15 +901,15 @@
     }
     textContentItemFontSize.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        const { drawingContext } = getContentItemInfo()
-        drawingContext.font = `${e.target.value * devicePixelRatio}px sans-serif`
+        const { drawContext } = getContentItemInfo()
+        drawContext.font = `${e.target.value * devicePixelRatio}px sans-serif`
         drawText("")
       }
     };
     textContentItemFontColor.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        const { drawingContext } = getContentItemInfo()
-        drawingContext.fillStyle = `#${parseInt(e.target.value).toString(16).padStart(6, "0")}`;
+        const { drawContext } = getContentItemInfo()
+        drawContext.fillStyle = `#${parseInt(e.target.value).toString(16).padStart(6, "0")}`;
       }
     };
     textContentItemBackgroundColor.oninput = (e) => {
@@ -925,7 +922,7 @@
     };
     textValue.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        drawText(e.target.value)
+        drawText("")
       }
     };
     function addTextContentItem() {
@@ -945,7 +942,7 @@
         focusItemRotation: 0,
         controls: createFocusControls(),
         canvas,
-        drawingContext: ctx,
+        drawContext: ctx,
         textContent: [],
       });
       focused_item = canvas;
@@ -1092,18 +1089,18 @@
     function drawText(s) {
       if (focused_item === null) throw Error("why did you try to draw without focused item")
       const contentItem = getContentItemInfo()
-      const { drawingContext, textContent } = contentItem
-      drawingContext.clearRect(0, 0, focused_item.width, focused_item.height)
-      drawingContext.font = `${textContentItemFontSize.value * devicePixelRatio}px sans-serif`
-      drawingContext.beginPath()
+      const { drawContext, textContent } = contentItem
+      drawContext.clearRect(0, 0, focused_item.width, focused_item.height)
+      drawContext.font = `${textContentItemFontSize.value * devicePixelRatio}px sans-serif`
       const new_string = contentItem.textContent.join("") + s
       const splits = [new_string]
       const new_splits = splits.reduce((acc, s) => {
         let start = 0
         let idx = 0
         while (idx < s.length) {
-          const { width } = drawingContext.measureText(s.slice(start, idx))
-          if (width > parseInt(focused_item.style.width) * devicePixelRatio) {
+          const { width  } = drawContext.measureText(s.slice(start, idx))
+          const { width: widthOfLetter } = drawContext.measureText(s.slice(idx - 1, idx))
+          if (width + widthOfLetter > parseInt(focused_item.style.width) * devicePixelRatio) {
             acc.push(s.slice(start, idx))
             start = idx
           }
@@ -1112,13 +1109,13 @@
         acc.push(s.slice(start, idx))
         return acc
       }, [])
-      let y = textContentItemFontSize.value * devicePixelRatio
+      const fontSizeForCanvas = textContentItemFontSize.value * devicePixelRatio
+      let y = fontSizeForCanvas
       for (const s of new_splits) {
-        drawingContext.font = `${textContentItemFontSize.value * devicePixelRatio}px sans-serif`
-        drawingContext.fillText(s, 0, y)
-        y += parseInt(drawingContext.font)
+        drawContext.font = `${textContentItemFontSize.value * devicePixelRatio}px sans-serif`
+        drawContext.fillText(s, 0, y)
+        y += fontSizeForCanvas
       }
-      drawingContext.closePath()
       contentItem.textContent = new_splits
     }
     document.addEventListener("keydown", (e) => {
@@ -1165,6 +1162,8 @@
             focused_item.firstChild.remove();
           }
           if (focused_item && focused_item.classList.contains("text-content-item")) {
+            const contentItem = getContentItemInfo()
+            textValue.value = contentItem.textContent.join("")
             drawText(e.key)
           }
         }
