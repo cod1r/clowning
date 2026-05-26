@@ -119,7 +119,7 @@
         <div
           popover="manual"
           id="text-controls-menu"
-          style="border-radius: 3px; border: none; box-shadow: grey 0 3px 2px"
+          style="border-radius: 3px; border: none; box-shadow: grey 0 3px 5px; padding: 10px"
         >
           <div style="display: flex; flex-direction: column">
             <label for="text-value">text value:</label>
@@ -366,6 +366,7 @@
 
         textContentItemControls.onpointerdown = (e) => {
           selectedFocusUIControl = textContentItemControls
+          syncTextControls()
           textControlsMenu.togglePopover()
         }
       }
@@ -723,7 +724,9 @@
             number_str += rgbaString[number_idx]
             number_idx ++
           }
-          fontColorsParts.push(parseInt(number_str))
+          if (number_str.length > 0) {
+            fontColorsParts.push(parseInt(number_str))
+          }
           i = number_idx === i ? i + 1 : number_idx
         }
         return fontColorsParts
@@ -734,6 +737,8 @@
       }
     }
     function syncTextControls() {
+      const contentItem = getContentItemInfo()
+      textContentItemFontSize.value = contentItem.fontSize
       const { fontColor, backgroundColor } = getRGBAValues()
       let usedValues;
       if (document.getElementById("text").checked) {
@@ -744,8 +749,8 @@
       const [r, g, b, a] = usedValues
       textContentItemColorRED.value = r 
       textContentItemColorGREEN.value = g
-      textContentItemColorBLUE = b
-      textContentItemColorALPHA = a
+      textContentItemColorBLUE.value = b
+      textContentItemColorALPHA.value = a * 255
     }
     // TODO: i need to implement mobile browser logic so pinching and zooming will scale things appropriately
     const pointerDownEvts = [];
@@ -919,7 +924,7 @@
               const angle_between = angle - contentItemInfo.focusItemRotation;
               const x_trans = Math.cos(angle_between) * dist;
               const y_trans = Math.sin(angle_between) * dist;
-              matrix.translateSelf(x_trans, y_trans);
+              matrix.translateSelf(x_trans / contentAreaMatrix.a, y_trans / contentAreaMatrix.a);
             }
             drawText("")
           } else {
@@ -1021,8 +1026,8 @@
       }
     }
     function onTextColorTypeSwitch(e) {
-      redrawTextContentItem(e)
       syncTextControls()
+      redrawTextContentItem(e)
     }
     document.getElementById("text").oninput = onTextColorTypeSwitch
     document.getElementById("background").oninput = onTextColorTypeSwitch
@@ -1032,7 +1037,9 @@
     textContentItemColorALPHA.oninput = redrawTextContentItem;
     textValue.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
-        drawText("")
+        const contentItem = getContentItemInfo()
+        contentItem.textContent = []
+        drawText(e.target.value)
       }
     };
     function addTextContentItem() {
@@ -1041,6 +1048,7 @@
       ctx.font = `${textContentItemFontSize * devicePixelRatio}px`
       canvas.classList.add("content-item");
       canvas.classList.add("text-content-item");
+      canvas.draggable = false;
       canvas.width = 400;
       canvas.height = 400;
       canvas.style.width = "200px"
@@ -1053,8 +1061,8 @@
         canvas,
         drawContext: ctx,
         textContent: [],
-        backgroundColor: "white",
-        fontColor: "black",
+        backgroundColor: "rgb(255 255 255 / 1)",
+        fontColor: "rgb(0 0 0 / 1)",
         fontSize: textContentItemFontSize.value * devicePixelRatio,
         fontFamily: "sans-serif"
       });
@@ -1273,7 +1281,7 @@
           ) {
             focused_item.firstChild.remove();
           }
-          if (focused_item && focused_item.classList.contains("text-content-item")) {
+          if (focused_item && focused_item.classList.contains("text-content-item") && document.activeElement !== textValue) {
             const contentItem = getContentItemInfo()
             textValue.value = contentItem.textContent.join("")
             drawText(e.key)
