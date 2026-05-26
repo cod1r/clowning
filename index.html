@@ -116,23 +116,8 @@
             "
           ></div>
         </button>
-        <button
-          id="text-controls"
-          popovertarget="text-controls-menu"
-          style="display: flex; justify-content: center; align-items: center; padding: 10px"
-        >
-          <div
-            style="
-              width: 20px;
-              height: 20px;
-              background-color: black;
-              clip-path: polygon(0% 0%, 100% 0%, 50% 100%, 0% 0%);
-              pointer-events: none;
-            "
-          ></div>
-        </button>
         <div
-          popover
+          popover="manual"
           id="text-controls-menu"
           style="border-radius: 3px; border: none; box-shadow: grey 0 3px 2px"
         >
@@ -149,24 +134,62 @@
               value="20"
               disabled
             />
-            <label for="text-font-color">font color:</label>
+            <label>colors for:</label>
+            <div style="display: flex; align-items: center; justify-content: center">
+              <input
+                name="text-color-type"
+                type="radio"
+                id="text"
+                value="text"
+                checked
+              />
+              <label for="text">text</label>
+              <input
+                name="text-color-type"
+                type="radio"
+                id="background"
+                value="background"
+              />
+              <label for="background">bg</label>
+            </div>
+            <label for="text-color-r">red:</label>
             <input
-              id="text-font-color"
+              id="text-color-r"
               type="range"
               min="0"
-              max="16777215"
+              max="255"
               value="0"
-              name="text-font-color"
+              name="text-color-r"
               disabled
             />
-            <label for="background-color">background color:</label>
+            <label for="text-color-g">green:</label>
             <input
-              id="text-font-background"
+              id="text-color-g"
               type="range"
               min="0"
-              max="16777216"
-              value="16777216"
-              name="background-color"
+              max="255"
+              value="0"
+              name="text-color-g"
+              disabled
+            />
+            <label for="text-color-b">blue:</label>
+            <input
+              id="text-color-b"
+              type="range"
+              min="0"
+              max="255"
+              value="0"
+              name="text-color-b"
+              disabled
+            />
+            <label for="text-color-a">alpha:</label>
+            <input
+              id="text-color-a"
+              type="range"
+              min="0"
+              max="255"
+              value="255"
+              name="text-color-a"
               disabled
             />
           </div>
@@ -206,9 +229,10 @@
       eraser.style.transform = matrix.toString();
     }
     const textContentItemFontSize = document.getElementById("text-font-size");
-    const textContentItemFontColor = document.getElementById("text-font-color");
-    const textContentItemBackgroundColor = document.getElementById("text-font-background");
-    const textControls = document.getElementById("text-controls");
+    const textContentItemColorRED = document.getElementById("text-color-r");
+    const textContentItemColorGREEN = document.getElementById("text-color-g");
+    const textContentItemColorBLUE = document.getElementById("text-color-b");
+    const textContentItemColorALPHA = document.getElementById("text-color-a");
     const textControlsMenu = document.getElementById("text-controls-menu");
     const textControlsMenuChildren = document.querySelectorAll("#text-controls-menu input");
     const textValue = document.getElementById("text-value");
@@ -217,7 +241,7 @@
     let selectedFocusUIControl = null;
     let offsetForPointer = null;
 
-    function createFocusControls() {
+    function createFocusControls(type) {
       const scale1 = document.createElement("div");
       scale1.id = "scale1";
       scale1.style.height = "30px";
@@ -323,6 +347,28 @@
         }
         selectedFocusUIControl = rotateFocusControl;
       };
+      let textContentItemControls;
+      if (type === "text") {
+        textContentItemControls = document.createElement("div")
+        textContentItemControls.id = "text-controls"
+        textContentItemControls.setAttribute("popovertarget", "text-controls-menu")
+        textContentItemControls.classList.add("focus-ui-controls")
+        textContentItemControls.textContent = "t"
+        textContentItemControls.fontWeight = "bold"
+
+        textContentItemControls.style.width = "25px";
+        textContentItemControls.style.height = "25px";
+        textContentItemControls.style.borderRadius = "30px 30px";
+        textContentItemControls.style.display = "flex";
+        textContentItemControls.style.alignItems = "center";
+        textContentItemControls.style.justifyContent = "center";
+        textContentItemControls.style.color = "white"
+
+        textContentItemControls.onpointerdown = (e) => {
+          selectedFocusUIControl = textContentItemControls
+          textControlsMenu.togglePopover()
+        }
+      }
       return {
         scale1,
         scale2,
@@ -333,6 +379,7 @@
         rightFocusBorder,
         bottomFocusBorder,
         rotateFocusControl,
+        textContentItemControls
       };
     }
 
@@ -419,8 +466,8 @@
         const y_pos = (Math.sin(angle_between) * dist) / contentAreaMatrix.a / scaleY;
         ctx.globalCompositeOperation = "destination-out";
         ctx.beginPath();
-        ctx.fillStyle = "rgba(255 255 255 / 1)";
-        ctx.strokeStyle = "rgba(255 255 255 / 1)";
+        ctx.fillStyle = "rgb(255 255 255 / 1)";
+        ctx.strokeStyle = "rgb(255 255 255 / 1)";
         ctx.ellipse(
           x_pos,
           y_pos,
@@ -450,6 +497,7 @@
         bottomFocusBorder,
         leftFocusBorder,
         rightFocusBorder,
+        textContentItemControls
       } = contentItemInfo.controls;
       root.appendChild(scale1);
       root.appendChild(scale2);
@@ -460,6 +508,7 @@
       root.appendChild(bottomFocusBorder);
       root.appendChild(leftFocusBorder);
       root.appendChild(rightFocusBorder);
+      if (textContentItemControls) root.appendChild(textContentItemControls)
     }
     function removeFocusControls() {
       const contentItemInfo = getContentItemInfo(focused_item);
@@ -474,6 +523,7 @@
         bottomFocusBorder,
         leftFocusBorder,
         rightFocusBorder,
+        textContentItemControls
       } = contentItemInfo.controls;
       // scale1, scale2, scale3 should not be present for text content items
       if (root.contains(scale1)) root.removeChild(scale1);
@@ -485,6 +535,7 @@
       if (root.contains(bottomFocusBorder)) root.removeChild(bottomFocusBorder);
       if (root.contains(leftFocusBorder)) root.removeChild(leftFocusBorder);
       if (root.contains(rightFocusBorder)) root.removeChild(rightFocusBorder);
+      if (root.contains(textContentItemControls)) root.removeChild(textContentItemControls)
     }
     function unfocus(element) {
       if (element !== focused_item && element !== selectedFocusUIControl) {
@@ -520,6 +571,7 @@
           rightFocusBorder,
           bottomFocusBorder,
           rotateFocusControl,
+          textContentItemControls
         } = contentItemInfo.controls;
 
         const [widthvalue, heightvalue] = getFocusItemWidthHeight();
@@ -548,8 +600,11 @@
           [leftFocusBorder, Math.PI, halfWidth],
           [rightFocusBorder, 0, halfWidth],
           [rotateFocusControl, -Math.PI / 2, halfHeight + 40],
+          [textContentItemControls, 0, halfWidth + 40]
         ];
         for (const [focus_control, angle_offset, length] of controlUIInfo) {
+          // image content items do not have textContentItemControls
+          if (focus_control === undefined) continue
           const isScale = [scale1, scale2, scale3, scale4].includes(focus_control);
           const focus_control_bbox = focus_control.getBoundingClientRect();
           const xCenter = focus_control_bbox.x + focus_control_bbox.width / 2;
@@ -653,16 +708,53 @@
         ];
       }
     }
+    function getRGBAValues() {
+      if (!focused_item.classList.contains("text-content-item")) throw Error("not text content item")
+      const contentItem = getContentItemInfo()
+      if (contentItem === undefined) throw Error("no content item to get colors from")
+      const { fontColor, backgroundColor } = contentItem
+      function getColorParts(rgbaString) {
+        const fontColorsParts = []
+        let i = 0;
+        while (i < rgbaString.length) {
+          let number_idx = i
+          let number_str = ''
+          while (rgbaString.charCodeAt(number_idx) >= 48 && rgbaString.charCodeAt(number_idx) <= 57) {
+            number_str += rgbaString[number_idx]
+            number_idx ++
+          }
+          fontColorsParts.push(parseInt(number_str))
+          i = number_idx === i ? i + 1 : number_idx
+        }
+        return fontColorsParts
+      }
+      return {
+        fontColor: getColorParts(fontColor),
+        backgroundColor: getColorParts(backgroundColor)
+      }
+    }
+    function syncTextControls() {
+      const { fontColor, backgroundColor } = getRGBAValues()
+      let usedValues;
+      if (document.getElementById("text").checked) {
+        usedValues = fontColor
+      } else if (document.getElementById("background").checked) {
+        usedValues = backgroundColor
+      }
+      const [r, g, b, a] = usedValues
+      textContentItemColorRED.value = r 
+      textContentItemColorGREEN.value = g
+      textContentItemColorBLUE = b
+      textContentItemColorALPHA = a
+    }
     // TODO: i need to implement mobile browser logic so pinching and zooming will scale things appropriately
     const pointerDownEvts = [];
     function pointerDownHandler(e) {
       erasing = true;
       actuallyErase(e);
       if (
-        textControls.contains(e.target) ||
         textControlsMenu.contains(e.target) ||
         eraserControl.contains(e.target) ||
-        textControls.contains(document.activeElement) ||
         textControlsMenu.contains(document.activeElement)
       )
         return;
@@ -670,6 +762,7 @@
       if (e.target === selectedFocusUIControl) {
         selectedFocusUIControl.classList.add("grabbing");
       }
+      if (focused_item && focused_item.classList.contains("text-content-item")) syncTextControls()
     }
     function moveGrabbedItem(e) {
       if (
@@ -846,6 +939,8 @@
           matrix.scaleSelf(scaleXOfFocusElement, scaleYOfFocusElement);
 
           for (const ui_part of Object.values(contentItemInfo.controls)) {
+            // image content items will not have text controls
+            if (ui_part === undefined) continue
             const bbox = ui_part.getBoundingClientRect();
             const ui_part_x_center = bbox.x + bbox.width / 2;
             const ui_part_y_center = bbox.y + bbox.height / 2;
@@ -884,10 +979,8 @@
       erasing = false;
       if (
         eraserEnabled ||
-        textControls.contains(e.target) ||
         textControlsMenu.contains(e.target) ||
         eraserControl.contains(e.target) ||
-        textControls.contains(document.activeElement) ||
         textControlsMenu.contains(document.activeElement)
       )
         return;
@@ -906,25 +999,37 @@
         drawText("")
       }
     };
-    textContentItemFontColor.oninput = (e) => {
+    function getTextContentItemColor() {
+      return `rgb(
+        ${textContentItemColorRED.value}
+        ${textContentItemColorGREEN.value}
+        ${textContentItemColorBLUE.value}
+        /
+        ${textContentItemColorALPHA.value / 255}
+        )`
+    }
+    function redrawTextContentItem(e) {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
         const contentItem = getContentItemInfo()
-        contentItem.fontColor = `#${parseInt(e.target.value).toString(16).padStart(6, "0")}`;
-        drawText("")
-      }
-    };
-    textContentItemBackgroundColor.oninput = (e) => {
-      if (focused_item && focused_item.classList.contains("text-content-item")) {
-        const value = parseInt(e.target.value);
-        const contentItem = getContentItemInfo()
-        if (value === parseInt("ffffff", 16) + 1) {
-          contentItem.backgroundColor = `rgb(255 255 255 / 0)`;
-        } else {
-          contentItem.backgroundColor = `#${value.toString(16).padStart(6, "0")}`;
+        const colorString = getTextContentItemColor()
+        if (document.getElementById("text").checked) {
+          contentItem.fontColor = colorString;
+        } else if (document.getElementById("background").checked) {
+          contentItem.backgroundColor = colorString;
         }
         drawText("")
       }
-    };
+    }
+    function onTextColorTypeSwitch(e) {
+      redrawTextContentItem(e)
+      syncTextControls()
+    }
+    document.getElementById("text").oninput = onTextColorTypeSwitch
+    document.getElementById("background").oninput = onTextColorTypeSwitch
+    textContentItemColorRED.oninput = redrawTextContentItem;
+    textContentItemColorGREEN.oninput = redrawTextContentItem;
+    textContentItemColorBLUE.oninput = redrawTextContentItem;
+    textContentItemColorALPHA.oninput = redrawTextContentItem;
     textValue.oninput = (e) => {
       if (focused_item && focused_item.classList.contains("text-content-item")) {
         drawText("")
@@ -936,7 +1041,6 @@
       ctx.font = `${textContentItemFontSize * devicePixelRatio}px`
       canvas.classList.add("content-item");
       canvas.classList.add("text-content-item");
-      canvas.appendChild(document.createTextNode("example text"));
       canvas.width = 400;
       canvas.height = 400;
       canvas.style.width = "200px"
@@ -945,7 +1049,7 @@
       contentItems.push({
         item: canvas,
         focusItemRotation: 0,
-        controls: createFocusControls(),
+        controls: createFocusControls("text"),
         canvas,
         drawContext: ctx,
         textContent: [],
