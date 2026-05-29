@@ -209,6 +209,108 @@
       local color table: optional
       image data
       */
+      const uint8 = new Uint8Array(arrayBuffer)
+      const isGIF = uint8.slice(0, 3).reduce((acc, elem) => acc + String.fromCharCode(elem), "") === "GIF"
+      if (!isGIF) return null;
+      let gif_idx = 6; // skipping first six bytes which are GIF (3 bytes) and the version (3 bytes)
+      const screenWidth = (uint8[gif_idx] << 8) | uint8[gif_idx + 1]
+      const screenHeight = (uint8[gif_idx + 2] << 8) | uint8[gif_idx + 3]
+      const packedFields = uint8[gif_idx + 4]
+      const globalColorTableExists = packedFields >> 7
+      const colorResolution = (packedFields >> 4) & 0b111
+      const sortFlag = (packedFields >> 3) & 0b1
+      const globalColorTableSize = packedFields & 0b111 // size is calculated by 2 ^ (globalColorTableSize + 1)
+      const backgroundColorIndex = uint8[gif_idx + 5]
+      const pixelAspectRatio = uint8[gif_idx + 6] // used in the formula (pixelAspectRatio + 15) / 64
+      const size = 3 * 2 ** (globalColorTableSize + 1)
+      gif_idx += 7
+      if (globalColorTableExists) {
+        const globalColorBytes = uint8.slice(gif_idx, gif_idx + size)
+        gif_idx += size
+      }
+      while (gif_idx < uint8.length) {
+        if (uint8[gif_idx] === 0x21) {
+          gif_idx += 1;
+          switch (uint8[gif_idx]) {
+            case 0xf9: {
+              // graphic control extension
+              console.log('gce')
+              const size = 4 // fixed number
+              const packedFields = uint8[gif_idx + 2]
+              const disposalMethod = (packedFields >> 2) & 0b111
+              const userInputFlag = (packedFields >> 1) & 0b1
+              const transparentColorFlag = (packedFields) & 0b1
+              const delayTime = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4] // number of 1/100 seconds
+              const couldBeTerminatorOrTransparentColorIndex = uint8[gif_idx + 5]
+              gif_idx += 6
+              break;
+            }
+            case 0xff: // application extension
+              {
+console.log("application")
+const blockSize = 11 // fixed size
+const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
+const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
+gif_idx += 2 + 8 + 3
+const dataSubBlockSize = uint8[gif_idx]
+const applicationData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
+if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
+gif_idx += dataSubBlockSize + 2
+break;}
+            case 0xfe: // comment extension
+              {
+console.log("comment")
+gif_idx += 1
+const dataSubBlockSize = uint8[gif_idx]
+const commentData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
+if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
+gif_idx += dataSubBlockSize + 2
+break;}
+            case 0x01: // plain text extension
+              {
+console.log("plain text")
+const blockSize = 12 // fixed size
+const textGridLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
+const textGridTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
+const textGridWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
+const textGridHeight = (uint8[gif_idx + 7] << 8) | uint8[gif_idx + 8]
+const charCellWidth = uint8[gif_idx + 9]
+const charCellHeight = uint8[gif_idx + 10]
+const textForegroundColorIdx = uint8[gif_idx + 11]
+const textBackgroundColorIdx = uint8[gif_idx + 12]
+const dataSubBlockSize = uint8[gif_idx + 13]
+const plainTextData = uint8.slice(gif_idx + 14, gif_idx + 14 + dataSubBlockSize)
+if (uint8[gif_idx + 14 + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
+gif_idx += 14 + dataSubBlockSize + 2
+break;}
+            default: {
+              throw Error(`ok what the fuck is this ${uint8[gif_idx + 1]}`)
+            }
+          }
+        } else if (uint8[gif_idx] === 0x3b) { // trailer block
+          break;
+        }
+
+        if (uint8[gif_idx] === 0x2c) {
+          console.log("image descriptor")
+          const imageLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
+          const imageTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
+          const imageWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
+          const imageHeight = (uint8[gif_idx + 7] << 8) | uint8[gif_idx + 8]
+          const packedFields = uint8[gif_idx + 9]
+          const localColorTableExists = (packedFields >> 7) & 0b1
+          const interlaceFlag = (packedFields >> 6) & 0b1
+          const sortFlag = (packedFields >> 5) & 0b1
+          const reserved = (packedFields >> 3) & 0b11
+          const localColorTableSize = packedFields & 0b111
+          gif_idx += 10
+          if (localColorTableExists) {
+            const actualSize = 3 * 2 ** (localColorTableSize + 1)
+            const localColorTableBytes = uint8.slice(gif_idx, gif_idx + actualSize)
+            gif_idx += actualSize
+          }
+        }
+      }
     }
   </script>
   <script>
@@ -1137,10 +1239,20 @@
         const imageUrl = URL.createObjectURL(file);
         createNewImageContentItem(imageUrl);
       } else {
-        // assuming that if no files, the user must've pasted a string
-        const idxOfTxtPlain = dataTransfer.types.indexOf("text/plain");
-        if (dataTransfer.items[idxOfTxtPlain]) {
-          dataTransfer.items[idxOfTxtPlain].getAsString((t) => trySVGContentItemOrMakeText(t));
+        const idxOfURI_List = dataTransfer.types.indexOf("text/uri-list")
+        if (dataTransfer.items[idxOfURI_List]) {
+          dataTransfer.items[idxOfURI_List].getAsString(async t => {
+            const blob = await fetch(t).then(r => r.blob())
+            const arrayBuffer = await blob.arrayBuffer()
+            parseGIF(arrayBuffer)
+          })
+        } else {
+          const idxOfTxtPlain = dataTransfer.types.indexOf("text/plain");
+          if (dataTransfer.items[idxOfTxtPlain]) {
+            dataTransfer.items[idxOfTxtPlain].getAsString((t) => {
+              trySVGContentItemOrMakeText(t)
+            });
+          }
         }
       }
     }
