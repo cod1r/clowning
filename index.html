@@ -242,7 +242,9 @@
               const transparentColorFlag = (packedFields) & 0b1
               const delayTime = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4] // number of 1/100 seconds
               const couldBeTerminatorOrTransparentColorIndex = uint8[gif_idx + 5]
-              gif_idx += 6
+              if ((transparentColorFlag && uint8[gif_idx + 6] !== 0) || (
+                !transparentColorFlag && uint8[gif_idx + 5] !==0 )) throw Error("should be block terminator")
+              gif_idx += (transparentColorFlag ? 7 : 6)
               break;
             }
             case 0xff: // application extension
@@ -280,8 +282,8 @@ const textForegroundColorIdx = uint8[gif_idx + 11]
 const textBackgroundColorIdx = uint8[gif_idx + 12]
 const dataSubBlockSize = uint8[gif_idx + 13]
 const plainTextData = uint8.slice(gif_idx + 14, gif_idx + 14 + dataSubBlockSize)
-if (uint8[gif_idx + 14 + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
-gif_idx += 14 + dataSubBlockSize + 2
+if (uint8[gif_idx + 14 + dataSubBlockSize] !== 0) throw Error("this should be a block terminator")
+gif_idx += 14 + dataSubBlockSize + 1
 break;}
             default: {
               throw Error(`ok what the fuck is this ${uint8[gif_idx + 1]}`)
@@ -289,9 +291,7 @@ break;}
           }
         } else if (uint8[gif_idx] === 0x3b) { // trailer block
           break;
-        }
-
-        if (uint8[gif_idx] === 0x2c) {
+        } else if (uint8[gif_idx] === 0x2c) {
           console.log("image descriptor")
           const imageLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
           const imageTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
@@ -309,6 +309,20 @@ break;}
             const localColorTableBytes = uint8.slice(gif_idx, gif_idx + actualSize)
             gif_idx += actualSize
           }
+          const lzwMinCodeSize = uint8[gif_idx]
+console.log(lzwMinCodeSize)
+          gif_idx += 1
+          while (gif_idx < uint8.length) {
+            const dataSubBlockSize = uint8[gif_idx]
+            if (dataSubBlockSize === 0) break;
+            const dataSubBlock = uint8.slice(gif_idx + 1, gif_idx + 1 + dataSubBlockSize)
+            gif_idx += 1 + dataSubBlockSize
+          }
+if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
+gif_idx += 1
+        } else {
+          console.log(uint8[gif_idx], gif_idx, uint8.length)
+          throw Error("UNHANDLED")
         }
       }
     }
