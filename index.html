@@ -241,10 +241,9 @@
               const userInputFlag = (packedFields >> 1) & 0b1
               const transparentColorFlag = (packedFields) & 0b1
               const delayTime = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4] // number of 1/100 seconds
-              const couldBeTerminatorOrTransparentColorIndex = uint8[gif_idx + 5]
-              if ((transparentColorFlag && uint8[gif_idx + 6] !== 0) || (
-                !transparentColorFlag && uint8[gif_idx + 5] !==0 )) throw Error("should be block terminator")
-              gif_idx += (transparentColorFlag ? 7 : 6)
+              const transparentColorIndex = uint8[gif_idx + 5]
+              if (uint8[gif_idx + 6] !== 0) throw Error("should be block terminator")
+              gif_idx += 7
               break;
             }
             case 0xff: // application extension
@@ -252,6 +251,7 @@
 console.log("application")
 const blockSize = 11 // fixed size
 const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
+console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
 const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
 gif_idx += 2 + 8 + 3
 const dataSubBlockSize = uint8[gif_idx]
