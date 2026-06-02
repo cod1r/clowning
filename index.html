@@ -222,12 +222,16 @@
       const globalColorTableSize = packedFields & 0b111 // size is calculated by 2 ^ (globalColorTableSize + 1)
       const backgroundColorIndex = uint8[gif_idx + 5]
       const pixelAspectRatio = uint8[gif_idx + 6] // used in the formula (pixelAspectRatio + 15) / 64
-      const size = 3 * 2 ** (globalColorTableSize + 1)
+      const actualGlobalColorTableSize = 3 * 2 ** (globalColorTableSize + 1)
+console.log('gct size', 2 ** (globalColorTableSize + 1))
       gif_idx += 7
       if (globalColorTableExists) {
-        const globalColorBytes = uint8.slice(gif_idx, gif_idx + size)
-        gif_idx += size
+        const globalColorBytes = uint8.slice(gif_idx, gif_idx + actualGlobalColorTableSize)
+        gif_idx += actualGlobalColorTableSize
       }
+let imageDescriptorCounter = 0;
+let endOfInfoCounter = 0;
+let imageData = []
       while (gif_idx < uint8.length) {
         if (uint8[gif_idx] === 0x21) {
           gif_idx += 1;
@@ -248,43 +252,46 @@
             }
             case 0xff: // application extension
               {
-console.log("application")
-const blockSize = 11 // fixed size
-const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
-console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
-const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
-gif_idx += 2 + 8 + 3
-const dataSubBlockSize = uint8[gif_idx]
-const applicationData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
-if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
-gif_idx += dataSubBlockSize + 2
-break;}
+                console.log("application")
+                const blockSize = 11 // fixed size
+                const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
+                console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
+                const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
+                gif_idx += 2 + 8 + 3
+                const dataSubBlockSize = uint8[gif_idx]
+                const applicationData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
+                if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
+                gif_idx += dataSubBlockSize + 2
+                break;
+              }
             case 0xfe: // comment extension
               {
-console.log("comment")
-gif_idx += 1
-const dataSubBlockSize = uint8[gif_idx]
-const commentData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
-if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
-gif_idx += dataSubBlockSize + 2
-break;}
+                console.log("comment")
+                gif_idx += 1
+                const dataSubBlockSize = uint8[gif_idx]
+                const commentData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
+                if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
+                gif_idx += dataSubBlockSize + 2
+                break;
+              }
             case 0x01: // plain text extension
               {
-console.log("plain text")
-const blockSize = 12 // fixed size
-const textGridLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
-const textGridTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
-const textGridWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
-const textGridHeight = (uint8[gif_idx + 7] << 8) | uint8[gif_idx + 8]
-const charCellWidth = uint8[gif_idx + 9]
-const charCellHeight = uint8[gif_idx + 10]
-const textForegroundColorIdx = uint8[gif_idx + 11]
-const textBackgroundColorIdx = uint8[gif_idx + 12]
-const dataSubBlockSize = uint8[gif_idx + 13]
-const plainTextData = uint8.slice(gif_idx + 14, gif_idx + 14 + dataSubBlockSize)
-if (uint8[gif_idx + 14 + dataSubBlockSize] !== 0) throw Error("this should be a block terminator")
-gif_idx += 14 + dataSubBlockSize + 1
-break;}
+                console.log("plain text")
+                const blockSize = 12 // fixed size
+                const textGridLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
+                const textGridTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
+                const textGridWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
+                const textGridHeight = (uint8[gif_idx + 7] << 8) | uint8[gif_idx + 8]
+                const charCellWidth = uint8[gif_idx + 9]
+                const charCellHeight = uint8[gif_idx + 10]
+                const textForegroundColorIdx = uint8[gif_idx + 11]
+                const textBackgroundColorIdx = uint8[gif_idx + 12]
+                const dataSubBlockSize = uint8[gif_idx + 13]
+                const plainTextData = uint8.slice(gif_idx + 14, gif_idx + 14 + dataSubBlockSize)
+                if (uint8[gif_idx + 14 + dataSubBlockSize] !== 0) throw Error("this should be a block terminator")
+                gif_idx += 14 + dataSubBlockSize + 1
+                break;
+              }
             default: {
               throw Error(`ok what the fuck is this ${uint8[gif_idx + 1]}`)
             }
@@ -293,6 +300,7 @@ break;}
           break;
         } else if (uint8[gif_idx] === 0x2c) {
           console.log("image descriptor")
+imageDescriptorCounter++
           const imageLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
           const imageTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
           const imageWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
@@ -304,27 +312,69 @@ break;}
           const reserved = (packedFields >> 3) & 0b11
           const localColorTableSize = packedFields & 0b111
           gif_idx += 10
+          let localColorTable = null;
+          const actualLocalColorTableSize = 3 * 2 ** (localColorTableSize + 1)
           if (localColorTableExists) {
-            const actualSize = 3 * 2 ** (localColorTableSize + 1)
-            const localColorTableBytes = uint8.slice(gif_idx, gif_idx + actualSize)
-            gif_idx += actualSize
+            localColorTable = uint8.slice(gif_idx, gif_idx + actualLocalColorTableSize)
+            gif_idx += actualLocalColorTableSize
           }
-          const lzwMinCodeSize = uint8[gif_idx]
-console.log(lzwMinCodeSize)
+          const lzwMinCodeSize = uint8[gif_idx] // gif spec says code size starts at min code size + 1 bits, up to 12 bits
+          console.log(lzwMinCodeSize, gif_idx, 'idx of image data')
           gif_idx += 1
+          const clearCode = 2 ** lzwMinCodeSize
+          const endOfInfo = clearCode + 1
+          const lzwSubBlocksSegments = []
           while (gif_idx < uint8.length) {
             const dataSubBlockSize = uint8[gif_idx]
             if (dataSubBlockSize === 0) break;
-            const dataSubBlock = uint8.slice(gif_idx + 1, gif_idx + 1 + dataSubBlockSize)
+            lzwSubBlocksSegments.push([gif_idx + 1, dataSubBlockSize])
             gif_idx += 1 + dataSubBlockSize
           }
-if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
-gif_idx += 1
+          let bit_pos = 0
+          let currentCodeBitLength = lzwMinCodeSize + 1
+          const table = new Map()
+          const resetTable = () => { table.clear(); for (let code = 0; code < clearCode; ++code) {table.set(code, [code])} }
+          resetTable()
+          let prev = null
+          outer: for (let subblock_idx = 0; subblock_idx < lzwSubBlocksSegments.length; ++subblock_idx) {
+            const [segmentStart, segmentLength] = lzwSubBlocksSegments[subblock_idx]
+            for (let segment_idx = segmentStart; segment_idx < segmentStart + segmentLength; ++segment_idx) {
+              while (bit_pos < 8) {
+                let code = 0
+                const part_of_code = (uint8[segment_idx] >> bit_pos) & ((1 << currentCodeBitLength) - 1)
+                code |= part_of_code
+                if (bit_pos + currentCodeBitLength > 8 &&
+                   (subblock_idx + 1 < lzwSubBlocksSegments.length || segment_idx + 1 < segmentStart + segmentLength)) {
+                  const atEndOfSegment = segment_idx === segmentStart + segmentLength - 1
+                  const nextByte = atEndOfSegment ?
+                    uint8[lzwSubBlocksSegments[subblock_idx + 1][0]] : uint8[segment_idx + 1]
+                  const lengthLeft = currentCodeBitLength - (8 - bit_pos)
+                  const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
+                  code |= part_of_code2 << (8 - bit_pos)
+                }
+                if (prev !== null) {
+                  console.log(prev, code, table.size, segment_idx, subblock_idx, segmentStart + segmentLength, lzwSubBlocksSegments.length)
+                  table.set(table.size + 2, table.get(prev).concat(table.get(code)))
+                }
+                imageData = imageData.concat(table.get(code))
+                switch (code) {
+                  case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
+                  case clearCode: { console.log("CLEAR CODE"); resetTable(); break }
+                  default: prev = code
+                }
+                bit_pos += currentCodeBitLength
+              }
+              bit_pos %= 8
+            }
+          }
+          if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
+          gif_idx += 1
         } else {
           console.log(uint8[gif_idx], gif_idx, uint8.length)
           throw Error("UNHANDLED")
         }
       }
+console.log(imageDescriptorCounter, endOfInfoCounter)
     }
   </script>
   <script>
