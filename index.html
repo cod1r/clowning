@@ -333,40 +333,53 @@ imageDescriptorCounter++
           let bit_pos = 0
           let currentCodeBitLength = lzwMinCodeSize + 1
           const table = new Map()
-          const resetTable = () => { table.clear(); for (let code = 0; code < clearCode; ++code) {table.set(code, [code])} }
+          const resetTable = () => {
+            table.clear();
+            for (let code = 0; code < clearCode; ++code) {table.set(code, [code])}
+            table.set(clearCode, null); table.set(endOfInfo, null)
+          }
           resetTable()
           let prev = null
-          outer: for (let subblock_idx = 0; subblock_idx < lzwSubBlocksSegments.length; ++subblock_idx) {
-            const [segmentStart, segmentLength] = lzwSubBlocksSegments[subblock_idx]
-            for (let segment_idx = segmentStart; segment_idx < segmentStart + segmentLength; ++segment_idx) {
-              while (bit_pos < 8) {
-                let code = 0
-                const part_of_code = (uint8[segment_idx] >> bit_pos) & ((1 << currentCodeBitLength) - 1)
-                code |= part_of_code
-                if (bit_pos + currentCodeBitLength > 8 &&
-                   (subblock_idx + 1 < lzwSubBlocksSegments.length || segment_idx + 1 < segmentStart + segmentLength)) {
-                  const atEndOfSegment = segment_idx === segmentStart + segmentLength - 1
-                  const nextByte = atEndOfSegment ?
-                    uint8[lzwSubBlocksSegments[subblock_idx + 1][0]] : uint8[segment_idx + 1]
-                  const lengthLeft = currentCodeBitLength - (8 - bit_pos)
-                  const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
-                  code |= part_of_code2 << (8 - bit_pos)
-                }
-                if (prev !== null) {
-                  console.log(prev, code, table.size, segment_idx, subblock_idx, segmentStart + segmentLength, lzwSubBlocksSegments.length)
-                  table.set(table.size + 2, table.get(prev).concat(table.get(code)))
-                }
-                imageData = imageData.concat(table.get(code))
-                switch (code) {
-                  case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
-                  case clearCode: { console.log("CLEAR CODE"); resetTable(); break }
-                  default: prev = code
-                }
-                bit_pos += currentCodeBitLength
+          const bytesLength = lzwSubBlocksSegments.reduce((acc, segment) => acc + segment[1], 0)
+          function getByteAtIndex(idx) {
+            lengthSoFar = 0
+            for (const [start, length] of lzwSubBlocksSegments) {
+              lengthSoFar += length
+              if (lengthSoFar > idx) return uint8[start + (idx - (lengthSoFar -length))]
+            }
+            return null
+          }
+const start = performance.now()
+          outer: while(Math.floor(bit_pos / 8) < bytesLength) {
+            const idx = Math.floor(bit_pos / 8)
+            while (true) {
+              let bit_pos_in_byte = bit_pos % 8
+              let code = 0
+              const byte = getByteAtIndex(idx)
+              const part_of_code = (byte >> bit_pos_in_byte) & ((1 << currentCodeBitLength) - 1)
+              code |= part_of_code
+              if (bit_pos_in_byte + currentCodeBitLength > 8 && idx + 1 < bytesLength) {
+                const nextByte = getByteAtIndex(idx + 1)
+                const lengthLeft = currentCodeBitLength - (8 - bit_pos_in_byte)
+                const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
+                code |= part_of_code2 << (8 - bit_pos_in_byte)
               }
-              bit_pos %= 8
+console.log(code, table.size)
+              if (prev !== null) {
+                table.set(table.size, table.get(prev).concat(code))
+if (table.size === 2 ** currentCodeBitLength) {
+++currentCodeBitLength
+}
+              }
+              switch (code) {
+                case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
+                case clearCode: { console.log("CLEAR CODE"); resetTable(); break }
+              }
+              bit_pos += currentCodeBitLength
+              if (bit_pos_in_byte + currentCodeBitLength > 8) break;
             }
           }
+console.log(performance.now() - start, 'time taken to decode lzw data in ms')
           if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
           gif_idx += 1
         } else {
