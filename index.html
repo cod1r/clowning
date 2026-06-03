@@ -200,6 +200,7 @@
   </body>
   <script>
     function parseGIF(arrayBuffer) {
+      const gif = {}
       /*
       https://giflib.sourceforge.net/gifstandard/GIF89a.html
       header: GIF + VERSION
@@ -210,6 +211,7 @@
       image data
       */
       const uint8 = new Uint8Array(arrayBuffer)
+      gif.buffer = uint8
       const isGIF = uint8.slice(0, 3).reduce((acc, elem) => acc + String.fromCharCode(elem), "") === "GIF"
       if (!isGIF) return null;
       let gif_idx = 6; // skipping first six bytes which are GIF (3 bytes) and the version (3 bytes)
@@ -217,21 +219,31 @@
       const screenHeight = (uint8[gif_idx + 2] << 8) | uint8[gif_idx + 3]
       const packedFields = uint8[gif_idx + 4]
       const globalColorTableExists = packedFields >> 7
+gif.screenWidth = screenWidth
+gif.screenHeight = screenHeight
+gif.globalColorTableExists = globalColorTableExists
       const colorResolution = (packedFields >> 4) & 0b111
+gif.colorResolution = colorResolution
       const sortFlag = (packedFields >> 3) & 0b1
+gif.sortFlag = sortFlag
       const globalColorTableSize = packedFields & 0b111 // size is calculated by 2 ^ (globalColorTableSize + 1)
       const backgroundColorIndex = uint8[gif_idx + 5]
+gif.backgroundColorIndex = backgroundColorIndex
       const pixelAspectRatio = uint8[gif_idx + 6] // used in the formula (pixelAspectRatio + 15) / 64
+gif.pixelAspectRatio = pixelAspectRatio
       const actualGlobalColorTableSize = 3 * 2 ** (globalColorTableSize + 1)
-console.log('gct size', 2 ** (globalColorTableSize + 1))
+      console.log('gct size', 2 ** (globalColorTableSize + 1))
       gif_idx += 7
       if (globalColorTableExists) {
         const globalColorBytes = uint8.slice(gif_idx, gif_idx + actualGlobalColorTableSize)
+        gif.globalColorTable = [gif_idx, actualGlobalColorTableSize]
         gif_idx += actualGlobalColorTableSize
       }
 let imageDescriptorCounter = 0;
 let endOfInfoCounter = 0;
 let imageData = []
+gif.dataBlocks = []
+let gce = null
       while (gif_idx < uint8.length) {
         if (uint8[gif_idx] === 0x21) {
           gif_idx += 1;
@@ -246,6 +258,7 @@ let imageData = []
               const transparentColorFlag = (packedFields) & 0b1
               const delayTime = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4] // number of 1/100 seconds
               const transparentColorIndex = uint8[gif_idx + 5]
+gce = { disposalMethod, userInputFlag, transparentColorFlag, delayTime, transparentColorIndex }
               if (uint8[gif_idx + 6] !== 0) throw Error("should be block terminator")
               gif_idx += 7
               break;
@@ -268,10 +281,13 @@ let imageData = []
               {
                 console.log("comment")
                 gif_idx += 1
+const commentDataBlockSegments = []
+while (uint8[gif_idx] !== 0) {
                 const dataSubBlockSize = uint8[gif_idx]
-                const commentData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
-                if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
-                gif_idx += dataSubBlockSize + 2
+commentDataBlockSegments.push([gif_idx + 1, dataSubBlockSize])
+                gif_idx += dataSubBlockSize + 1
+}
+gif_idx += 1
                 break;
               }
             case 0x01: // plain text extension
@@ -286,10 +302,15 @@ let imageData = []
                 const charCellHeight = uint8[gif_idx + 10]
                 const textForegroundColorIdx = uint8[gif_idx + 11]
                 const textBackgroundColorIdx = uint8[gif_idx + 12]
-                const dataSubBlockSize = uint8[gif_idx + 13]
-                const plainTextData = uint8.slice(gif_idx + 14, gif_idx + 14 + dataSubBlockSize)
-                if (uint8[gif_idx + 14 + dataSubBlockSize] !== 0) throw Error("this should be a block terminator")
-                gif_idx += 14 + dataSubBlockSize + 1
+gif_idx += 13
+const plainTextDataSegments = []
+while (uint8[gif_idx] !== 0) {
+                const dataSubBlockSize = uint8[gif_idx]
+plainTextDataSegments.push([gif_idx + 1, dataSubBlockSize])
+                gif_idx += 1 + dataSubBlockSize
+}
+gif.dataBlocks.push({ gce, textGridLeftPos, textGridTopPos, textGridWidth, textGridHeight, charCellWidth, charCellHeight, textForegroundColorIdx, textForegroundColorIdx, plainTextDataSegments })
+gif_idx += 1
                 break;
               }
             default: {
@@ -300,7 +321,7 @@ let imageData = []
           break;
         } else if (uint8[gif_idx] === 0x2c) {
           console.log("image descriptor")
-imageDescriptorCounter++
+          imageDescriptorCounter++
           const imageLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
           const imageTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
           const imageWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
@@ -337,6 +358,7 @@ imageDescriptorCounter++
             table.clear();
             for (let code = 0; code < clearCode; ++code) {table.set(code, [code])}
             table.set(clearCode, null); table.set(endOfInfo, null)
+            currentCodeBitLength = lzwMinCodeSize + 1
           }
           resetTable()
           let prev = null
@@ -349,7 +371,7 @@ imageDescriptorCounter++
             }
             return null
           }
-const start = performance.now()
+          const start = performance.now()
           outer: while(Math.floor(bit_pos / 8) < bytesLength) {
             const idx = Math.floor(bit_pos / 8)
             while (true) {
@@ -364,12 +386,11 @@ const start = performance.now()
                 const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
                 code |= part_of_code2 << (8 - bit_pos_in_byte)
               }
-console.log(code, table.size)
               if (prev !== null) {
                 table.set(table.size, table.get(prev).concat(code))
-if (table.size === 2 ** currentCodeBitLength) {
-++currentCodeBitLength
-}
+                if (table.size === 2 ** currentCodeBitLength) {
+                  ++currentCodeBitLength
+                }
               }
               switch (code) {
                 case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
