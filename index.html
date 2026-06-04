@@ -244,6 +244,7 @@ let endOfInfoCounter = 0;
 let imageData = []
 gif.dataBlocks = []
 let gce = null
+const startOfGifParseTime = performance.now()
       while (gif_idx < uint8.length) {
         if (uint8[gif_idx] === 0x21) {
           gif_idx += 1;
@@ -265,20 +266,27 @@ gce = { disposalMethod, userInputFlag, transparentColorFlag, delayTime, transpar
             }
             case 0xff: // application extension
               {
+gce = null
                 console.log("application")
                 const blockSize = 11 // fixed size
                 const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
                 console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
                 const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
                 gif_idx += 2 + 8 + 3
+const applicationDataSegments = []
+while (uint8[gif_idx] !== 0) {
                 const dataSubBlockSize = uint8[gif_idx]
                 const applicationData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
-                if (uint8[gif_idx + dataSubBlockSize + 1] !== 0) throw Error("this should be a block terminator")
-                gif_idx += dataSubBlockSize + 2
+applicationDataSegments.push([gif_idx + 1, dataSubBlockSize])
+                gif_idx += dataSubBlockSize + 1
+}
+gif.dataBlocks.push({ type: 'application', applicationId, applicationAuthCode, applicationDataSegments })
+gif_idx += 1
                 break;
               }
             case 0xfe: // comment extension
               {
+gce = null
                 console.log("comment")
                 gif_idx += 1
 const commentDataBlockSegments = []
@@ -287,6 +295,7 @@ while (uint8[gif_idx] !== 0) {
 commentDataBlockSegments.push([gif_idx + 1, dataSubBlockSize])
                 gif_idx += dataSubBlockSize + 1
 }
+gif.dataBlocks.push({ type: 'comment', commentDataBlockSegments })
 gif_idx += 1
                 break;
               }
@@ -329,16 +338,18 @@ gif_idx += 1
           const packedFields = uint8[gif_idx + 9]
           const localColorTableExists = (packedFields >> 7) & 0b1
           const interlaceFlag = (packedFields >> 6) & 0b1
+          if (interlaceFlag) console.error('interlaced logic not implemented')
           const sortFlag = (packedFields >> 5) & 0b1
           const reserved = (packedFields >> 3) & 0b11
           const localColorTableSize = packedFields & 0b111
           gif_idx += 10
-          let localColorTable = null;
+          let localColorTableSegment = null;
           const actualLocalColorTableSize = 3 * 2 ** (localColorTableSize + 1)
           if (localColorTableExists) {
-            localColorTable = uint8.slice(gif_idx, gif_idx + actualLocalColorTableSize)
+            localColorTableSegment = [gif_idx, actualLocalColorTableSize]
             gif_idx += actualLocalColorTableSize
           }
+          const imageDescriptor = { imageLeftPos, imageTopPos, imageWidth, imageHeight, interlaceFlag, sortFlag }
           const lzwMinCodeSize = uint8[gif_idx] // gif spec says code size starts at min code size + 1 bits, up to 12 bits
           console.log(lzwMinCodeSize, gif_idx, 'idx of image data')
           gif_idx += 1
@@ -353,15 +364,16 @@ gif_idx += 1
           }
           let bit_pos = 0
           let currentCodeBitLength = lzwMinCodeSize + 1
-          const table = new Map()
+          const table = []
+          let prev = null
           const resetTable = () => {
-            table.clear();
-            for (let code = 0; code < clearCode; ++code) {table.set(code, [code])}
-            table.set(clearCode, null); table.set(endOfInfo, null)
+            prev = null
+            table.length = 0
+            for (let code = 0; code < clearCode; ++code) {table.push([code])}
+            table.push([]);
+            table.push(null)
             currentCodeBitLength = lzwMinCodeSize + 1
           }
-          resetTable()
-          let prev = null
           const bytesLength = lzwSubBlocksSegments.reduce((acc, segment) => acc + segment[1], 0)
           function getByteAtIndex(idx) {
             lengthSoFar = 0
@@ -373,34 +385,44 @@ gif_idx += 1
           }
           const start = performance.now()
           outer: while(Math.floor(bit_pos / 8) < bytesLength) {
-            const idx = Math.floor(bit_pos / 8)
-            while (true) {
-              let bit_pos_in_byte = bit_pos % 8
-              let code = 0
-              const byte = getByteAtIndex(idx)
-              const part_of_code = (byte >> bit_pos_in_byte) & ((1 << currentCodeBitLength) - 1)
-              code |= part_of_code
-              if (bit_pos_in_byte + currentCodeBitLength > 8 && idx + 1 < bytesLength) {
-                const nextByte = getByteAtIndex(idx + 1)
-                const lengthLeft = currentCodeBitLength - (8 - bit_pos_in_byte)
-                const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
-                code |= part_of_code2 << (8 - bit_pos_in_byte)
-              }
-              if (prev !== null) {
-                table.set(table.size, table.get(prev).concat(code))
-                if (table.size === 2 ** currentCodeBitLength) {
-                  ++currentCodeBitLength
-                }
-              }
-              switch (code) {
-                case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
-                case clearCode: { console.log("CLEAR CODE"); resetTable(); break }
-              }
-              bit_pos += currentCodeBitLength
-              if (bit_pos_in_byte + currentCodeBitLength > 8) break;
+            let idx = Math.floor(bit_pos / 8)
+            let bit_pos_in_byte = bit_pos % 8
+            const byte = getByteAtIndex(idx)
+            let code = (byte >> bit_pos_in_byte) & ((1 << currentCodeBitLength) - 1)
+            let lengthLeft = currentCodeBitLength - (8 - bit_pos_in_byte)
+            while (lengthLeft > 0) {
+              // only time this while loop runs is if lengthLeft is positive which only occurs when reading across byte boundaries is needed
+              ++idx
+              const nextByte = getByteAtIndex(idx)
+              const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
+              code |= part_of_code2 << (currentCodeBitLength - lengthLeft)
+              lengthLeft -= 8
             }
+            bit_pos += currentCodeBitLength
+
+            switch (code) {
+              case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
+              case clearCode: { console.log("CLEAR CODE"); resetTable(); continue }
+            }
+
+            if (prev !== null && code !== clearCode) {
+              if (table[code] === undefined) { // sometimes the encoders will output a code that is of the maximum table size
+                if (code !== table.length) {
+                  console.error("only codes that would not be in the table that are also valid are ones that equal the table length; anything else is invalid data")
+                  debugger
+                }
+                table.push(table[prev].concat(table[prev][0]))
+              } else {
+                table.push(table[prev].concat(table[code][0]))
+              }
+              if (table.length === 2 ** currentCodeBitLength && currentCodeBitLength < 12) {
+                console.log("increased bit length")
+                ++currentCodeBitLength
+              }
+            }
+            prev = code
           }
-console.log(performance.now() - start, 'time taken to decode lzw data in ms')
+          console.log(performance.now() - start, 'time taken to decode image lzw data in ms')
           if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
           gif_idx += 1
         } else {
@@ -408,7 +430,8 @@ console.log(performance.now() - start, 'time taken to decode lzw data in ms')
           throw Error("UNHANDLED")
         }
       }
-console.log(imageDescriptorCounter, endOfInfoCounter)
+      console.log('time to parse entire gif in ms', performance.now() - startOfGifParseTime)
+      console.assert(imageDescriptorCounter === endOfInfoCounter)
     }
   </script>
   <script>
