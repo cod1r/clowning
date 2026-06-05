@@ -199,7 +199,7 @@
     </div>
   </body>
   <script>
-    function parseGIF(arrayBuffer) {
+    function parseGIF(arrayBuffer, log=false) {
       const gif = {}
       /*
       https://giflib.sourceforge.net/gifstandard/GIF89a.html
@@ -232,7 +232,7 @@
       const pixelAspectRatio = uint8[gif_idx + 6] // used in the formula (pixelAspectRatio + 15) / 64
       gif.pixelAspectRatio = pixelAspectRatio
       const actualGlobalColorTableSize = 3 * 2 ** (globalColorTableSize + 1)
-      console.log('gct size', 2 ** (globalColorTableSize + 1))
+      if (log) console.log('gct size', 2 ** (globalColorTableSize + 1))
       gif_idx += 7
       if (globalColorTableExists) {
         const globalColorBytes = uint8.slice(gif_idx, gif_idx + actualGlobalColorTableSize)
@@ -251,7 +251,7 @@
           switch (uint8[gif_idx]) {
             case 0xf9: {
               // graphic control extension
-              console.log('gce')
+              if (log) console.log('gce')
               const size = 4 // fixed number
               const packedFields = uint8[gif_idx + 2]
               const disposalMethod = (packedFields >> 2) & 0b111
@@ -267,10 +267,10 @@
             case 0xff: // application extension
               {
                 gce = null
-                console.log("application")
+                if (log) console.log("application")
                 const blockSize = 11 // fixed size
                 const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
-                console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
+                if (log) console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
                 const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
                 gif_idx += 2 + 8 + 3
                 const applicationDataSegments = []
@@ -286,7 +286,7 @@
             case 0xfe: // comment extension
               {
                 gce = null
-                console.log("comment")
+                if (log) console.log("comment")
                 gif_idx += 1
                 const commentDataBlockSegments = []
                 while (uint8[gif_idx] !== 0) {
@@ -300,7 +300,7 @@
               }
             case 0x01: // plain text extension
               {
-                console.log("plain text")
+                if (log) console.log("plain text")
                 const blockSize = 12 // fixed size
                 const textGridLeftPos = (uint8[gif_idx + 1]) | (uint8[gif_idx + 2] << 8)
                 const textGridTopPos = (uint8[gif_idx + 3]) | (uint8[gif_idx + 4] << 8)
@@ -328,7 +328,7 @@
         } else if (uint8[gif_idx] === 0x3b) { // trailer block
           break;
         } else if (uint8[gif_idx] === 0x2c) {
-          console.log("image descriptor")
+          if (log) console.log("image descriptor")
           imageDescriptorCounter++
           const imageLeftPos = (uint8[gif_idx + 1]) | (uint8[gif_idx + 2] << 8)
           const imageTopPos = (uint8[gif_idx + 3]) | (uint8[gif_idx + 4] << 8)
@@ -337,7 +337,6 @@
           const packedFields = uint8[gif_idx + 9]
           const localColorTableExists = (packedFields >> 7) & 0b1
           const interlaceFlag = (packedFields >> 6) & 0b1
-          if (interlaceFlag) throw Error('interlaced logic not implemented')
           const sortFlag = (packedFields >> 5) & 0b1
           const reserved = (packedFields >> 3) & 0b11
           const localColorTableSize = packedFields & 0b111
@@ -350,7 +349,7 @@
           }
           const imageDescriptor = { imageLeftPos, imageTopPos, imageWidth, imageHeight, interlaceFlag, sortFlag }
           const lzwMinCodeSize = uint8[gif_idx] // gif spec says code size starts at min code size + 1 bits, up to 12 bits
-          console.log(lzwMinCodeSize, gif_idx, 'idx of image data')
+          if (log) console.log(lzwMinCodeSize, gif_idx, 'idx of image data')
           gif_idx += 1
           const clearCode = 2 ** lzwMinCodeSize
           const endOfInfo = clearCode + 1
@@ -414,7 +413,7 @@
             prev = code
           }
           gif.dataBlocks.push({ type: "graphic block", gce, imageDescriptor, localColorTableSegment, imageData })
-          console.log(performance.now() - start, 'time taken to decode image lzw data in ms')
+          if (log) console.log(performance.now() - start, 'time taken to decode image lzw data in ms')
           if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
           gif_idx += 1
         } else {
@@ -422,7 +421,7 @@
           throw Error("UNHANDLED")
         }
       }
-      console.log('time to parse entire gif in ms', performance.now() - startOfGifParseTime, imageDescriptorCounter)
+      if (log) console.log('time to parse entire gif in ms', performance.now() - startOfGifParseTime, imageDescriptorCounter)
       console.assert(imageDescriptorCounter === endOfInfoCounter)
       return gif
     }
@@ -1357,13 +1356,37 @@
       if (!colorTableSegment) throw Error("no color table")
       const [start, size] = colorTableSegment
       const transparentIndex = graphicBlock.gce.transparentColorFlag && graphicBlock.gce.transparentColorIndex
-      for (let i = 0; i < graphicBlock.imageData.length; ++i) {
-        const idx = graphicBlock.imageData[i]
-        const [r, g, b] = [gif.buffer[start + idx * 3], gif.buffer[start + idx * 3 + 1], gif.buffer[start + idx * 3 + 2]]
-        imageDataForCanvas.data[i * 4] = r
-        imageDataForCanvas.data[i * 4 + 1] = g
-        imageDataForCanvas.data[i * 4 + 2] = b
-        imageDataForCanvas.data[i * 4 + 3] = 255
+      const interlaced = graphicBlock.imageDescriptor.interlaceFlag
+      if (interlaced) {
+        const passes = [
+          [width * 8, 0],
+          [width * 8, width * 4],
+          [width * 4, width * 2],
+          [width * 2, width * 1],
+        ]
+        let imageDataIdx = 0
+        for (let passIdx = 0; passIdx < passes.length; ++passIdx) {
+          const [step, offset] = passes[passIdx]
+          for (let i = offset; i < graphicBlock.imageData.length; i += step) {
+            for (let j = i; j < i + width; ++j) {
+              const idx = graphicBlock.imageData[imageDataIdx++]
+              const [r, g, b] = [gif.buffer[start + idx * 3], gif.buffer[start + idx * 3 + 1], gif.buffer[start + idx * 3 + 2]]
+              imageDataForCanvas.data[j * 4] = r
+              imageDataForCanvas.data[j * 4 + 1] = g
+              imageDataForCanvas.data[j * 4 + 2] = b
+              imageDataForCanvas.data[j * 4 + 3] = 255
+            }
+          }
+        }
+      } else {
+        for (let i = 0; i < graphicBlock.imageData.length; ++i) {
+          const idx = graphicBlock.imageData[i]
+          const [r, g, b] = [gif.buffer[start + idx * 3], gif.buffer[start + idx * 3 + 1], gif.buffer[start + idx * 3 + 2]]
+          imageDataForCanvas.data[i * 4] = r
+          imageDataForCanvas.data[i * 4 + 1] = g
+          imageDataForCanvas.data[i * 4 + 2] = b
+          imageDataForCanvas.data[i * 4 + 3] = 255
+        }
       }
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")
@@ -1377,6 +1400,7 @@
         controls: createFocusControls(),
         canvas,
         drawContext: ctx,
+        gif
       });
       focused_item = canvas;
       content_area.appendChild(canvas);
@@ -1393,7 +1417,7 @@
           dataTransfer.items[idxOfURI_List].getAsString(async t => {
             const blob = await fetch(t).then(r => r.blob())
             const arrayBuffer = await blob.arrayBuffer()
-            const gif = parseGIF(arrayBuffer)
+            const gif = parseGIF(arrayBuffer, true)
             addGIFContentItem(gif)
           })
         } else {
