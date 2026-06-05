@@ -354,56 +354,37 @@
           gif_idx += 1
           const clearCode = 2 ** lzwMinCodeSize
           const endOfInfo = clearCode + 1
-          const lzwSubBlocksSegments = []
+          const bytes = []
           while (gif_idx < uint8.length) {
             const dataSubBlockSize = uint8[gif_idx]
             if (dataSubBlockSize === 0) break;
-            lzwSubBlocksSegments.push([gif_idx + 1, dataSubBlockSize])
+            for (let i = gif_idx + 1; i < gif_idx + 1 + dataSubBlockSize; ++i) bytes.push(uint8[i])
             gif_idx += 1 + dataSubBlockSize
           }
           let bit_pos = 0
           let currentCodeBitLength = lzwMinCodeSize + 1
-          const table = []
+          const table = new Array(258)
           let prev = null
           const resetTable = () => {
             prev = null
             table.length = 0
-            for (let code = 0; code < clearCode; ++code) {table.push([code])}
-            table.push([]); // clearCode index
-            table.push(null) // endOfInfo index
+            for (let code = 0; code < clearCode; ++code) {table[code] = [code]}
+            table[clearCode] = []; // clearCode index
+            table[endOfInfo] = null // endOfInfo index
             currentCodeBitLength = lzwMinCodeSize + 1
-          }
-          const bytesLength = lzwSubBlocksSegments.reduce((acc, segment) => acc + segment[1], 0)
-          let lengthSoFar = 0
-          const segmentsWithRelativeIndexes = lzwSubBlocksSegments.map(([start, length]) => {
-            lengthSoFar += length
-            return [lengthSoFar - length, start, length]
-          })
-          function getByteAtIndex(idx) {
-            let left = 0
-            let right = segmentsWithRelativeIndexes.length - 1
-            while (left <= right) {
-              let mid = left + Math.floor((right - left) / 2)
-              let [relativeStartIdx, start, length] = segmentsWithRelativeIndexes[mid]
-              if (idx >= relativeStartIdx && idx < relativeStartIdx + length) return uint8[start + (idx - relativeStartIdx)]
-              else if (idx < relativeStartIdx) {right = mid - 1}
-              else if (idx >= relativeStartIdx + length) {left = mid + 1}
-              else { console.error("unhandled"); debugger }
-            }
-            return null
           }
           const imageData = []
           const start = performance.now()
-          outer: while(Math.floor(bit_pos / 8) < bytesLength) {
+          outer: while(Math.floor(bit_pos / 8) < bytes.length) {
             let idx = Math.floor(bit_pos / 8)
             let bit_pos_in_byte = bit_pos % 8
-            const byte = getByteAtIndex(idx)
+            const byte = bytes[idx]
             let code = (byte >> bit_pos_in_byte) & ((1 << currentCodeBitLength) - 1)
             let lengthLeft = currentCodeBitLength - (8 - bit_pos_in_byte)
             while (lengthLeft > 0) {
               // only time this while loop runs is if lengthLeft is positive which only occurs when reading across byte boundaries is needed
               ++idx
-              const nextByte = getByteAtIndex(idx)
+              const nextByte = bytes[idx]
               const part_of_code2 = nextByte & ((1 << lengthLeft) - 1)
               code |= part_of_code2 << (currentCodeBitLength - lengthLeft)
               lengthLeft -= 8
@@ -1384,7 +1365,6 @@
         imageDataForCanvas.data[i * 4 + 2] = b
         imageDataForCanvas.data[i * 4 + 3] = 255
       }
-      console.log(imageDataForCanvas)
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")
       canvas.width = width
