@@ -1370,12 +1370,37 @@
       const graphicBlock = gif.dataBlocks.find(data => data.type === "graphic block")
       const width = graphicBlock.imageDescriptor.imageWidth
       const height = graphicBlock.imageDescriptor.imageHeight
-      console.log(width, height, graphicBlock.imageData.length, gif.screenWidth, gif.screenHeight)
       const imageDataForCanvas = new ImageData(width, height)
       console.assert(width * height === graphicBlock.imageData.length)
-      //for (let i = 0; i < graphicBlock.imageData.length; ++i) {
-      //  imageDataForCanvas.data[dd]
-      //}
+      const colorTableSegment = graphicBlock.localColorTableSegment ? graphicBlock.localColorTableSegment : gif.globalColorTable
+      if (!colorTableSegment) throw Error("no color table")
+      const [start, size] = colorTableSegment
+      const transparentIndex = graphicBlock.gce.transparentColorFlag && graphicBlock.gce.transparentColorIndex
+      for (let i = 0; i < graphicBlock.imageData.length; ++i) {
+        const idx = graphicBlock.imageData[i]
+        const [r, g, b] = [gif.buffer[start + idx * 3], gif.buffer[start + idx * 3 + 1], gif.buffer[start + idx * 3 + 2]]
+        imageDataForCanvas.data[i * 4] = r
+        imageDataForCanvas.data[i * 4 + 1] = g
+        imageDataForCanvas.data[i * 4 + 2] = b
+        imageDataForCanvas.data[i * 4 + 3] = 255
+      }
+      console.log(imageDataForCanvas)
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")
+      canvas.width = width
+      canvas.height = height
+      canvas.draggable = false
+      canvas.classList.add("content-item")
+      contentItems.push({
+        item: canvas,
+        focusItemRotation: 0,
+        controls: createFocusControls(),
+        canvas,
+        drawContext: ctx,
+      });
+      focused_item = canvas;
+      content_area.appendChild(canvas);
+      ctx.putImageData(imageDataForCanvas, graphicBlock.imageDescriptor.imageLeftPos, graphicBlock.imageDescriptor.imageTopPos)
     }
     function getDataTransferContent(dataTransfer) {
       const file = dataTransfer.files[0];
