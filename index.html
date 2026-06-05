@@ -276,7 +276,6 @@ gce = null
 const applicationDataSegments = []
 while (uint8[gif_idx] !== 0) {
                 const dataSubBlockSize = uint8[gif_idx]
-                const applicationData = uint8.slice(gif_idx + 1, gif_idx + dataSubBlockSize + 1)
 applicationDataSegments.push([gif_idx + 1, dataSubBlockSize])
                 gif_idx += dataSubBlockSize + 1
 }
@@ -370,16 +369,26 @@ gif_idx += 1
             prev = null
             table.length = 0
             for (let code = 0; code < clearCode; ++code) {table.push([code])}
-            table.push([]);
-            table.push(null)
+            table.push([]); // clearCode index
+            table.push(null) // endOfInfo index
             currentCodeBitLength = lzwMinCodeSize + 1
           }
           const bytesLength = lzwSubBlocksSegments.reduce((acc, segment) => acc + segment[1], 0)
+          let lengthSoFar = 0
+          const segmentsWithRelativeIndexes = lzwSubBlocksSegments.map(([start, length]) => {
+            lengthSoFar += length
+            return [lengthSoFar - length, start, length]
+          })
           function getByteAtIndex(idx) {
-            lengthSoFar = 0
-            for (const [start, length] of lzwSubBlocksSegments) {
-              lengthSoFar += length
-              if (lengthSoFar > idx) return uint8[start + (idx - (lengthSoFar -length))]
+            let left = 0
+            let right = segmentsWithRelativeIndexes.length - 1
+            while (left <= right) {
+              let mid = left + Math.floor((right - left) / 2)
+              let [relativeStartIdx, start, length] = segmentsWithRelativeIndexes[mid]
+              if (idx >= relativeStartIdx && idx < relativeStartIdx + length) return uint8[start + (idx - relativeStartIdx)]
+              else if (idx < relativeStartIdx) {right = mid - 1}
+              else if (idx >= relativeStartIdx + length) {left = mid + 1}
+              else { console.error("unhandled"); debugger }
             }
             return null
           }
@@ -401,8 +410,8 @@ gif_idx += 1
             bit_pos += currentCodeBitLength
 
             switch (code) {
-              case endOfInfo:{ console.log("END OF INFO"); endOfInfoCounter++; break outer }
-              case clearCode: { console.log("CLEAR CODE"); resetTable(); continue }
+              case endOfInfo:{ endOfInfoCounter++; break outer }
+              case clearCode: { resetTable(); continue }
             }
 
             if (prev !== null && code !== clearCode) {
@@ -416,7 +425,6 @@ gif_idx += 1
                 table.push(table[prev].concat(table[code][0]))
               }
               if (table.length === 2 ** currentCodeBitLength && currentCodeBitLength < 12) {
-                console.log("increased bit length")
                 ++currentCodeBitLength
               }
             }
