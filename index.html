@@ -215,22 +215,22 @@
       const isGIF = uint8.slice(0, 3).reduce((acc, elem) => acc + String.fromCharCode(elem), "") === "GIF"
       if (!isGIF) return null;
       let gif_idx = 6; // skipping first six bytes which are GIF (3 bytes) and the version (3 bytes)
-      const screenWidth = (uint8[gif_idx] << 8) | uint8[gif_idx + 1]
-      const screenHeight = (uint8[gif_idx + 2] << 8) | uint8[gif_idx + 3]
+      const screenWidth = (uint8[gif_idx]) | (uint8[gif_idx + 1] << 8)
+      const screenHeight = (uint8[gif_idx + 2]) | (uint8[gif_idx + 3] << 8)
       const packedFields = uint8[gif_idx + 4]
       const globalColorTableExists = packedFields >> 7
-gif.screenWidth = screenWidth
-gif.screenHeight = screenHeight
-gif.globalColorTableExists = globalColorTableExists
+      gif.screenWidth = screenWidth
+      gif.screenHeight = screenHeight
+      gif.globalColorTableExists = globalColorTableExists
       const colorResolution = (packedFields >> 4) & 0b111
-gif.colorResolution = colorResolution
+      gif.colorResolution = colorResolution
       const sortFlag = (packedFields >> 3) & 0b1
-gif.sortFlag = sortFlag
+      gif.sortFlag = sortFlag
       const globalColorTableSize = packedFields & 0b111 // size is calculated by 2 ^ (globalColorTableSize + 1)
       const backgroundColorIndex = uint8[gif_idx + 5]
-gif.backgroundColorIndex = backgroundColorIndex
+      gif.backgroundColorIndex = backgroundColorIndex
       const pixelAspectRatio = uint8[gif_idx + 6] // used in the formula (pixelAspectRatio + 15) / 64
-gif.pixelAspectRatio = pixelAspectRatio
+      gif.pixelAspectRatio = pixelAspectRatio
       const actualGlobalColorTableSize = 3 * 2 ** (globalColorTableSize + 1)
       console.log('gct size', 2 ** (globalColorTableSize + 1))
       gif_idx += 7
@@ -239,12 +239,12 @@ gif.pixelAspectRatio = pixelAspectRatio
         gif.globalColorTable = [gif_idx, actualGlobalColorTableSize]
         gif_idx += actualGlobalColorTableSize
       }
-let imageDescriptorCounter = 0;
-let endOfInfoCounter = 0;
-let imageData = []
-gif.dataBlocks = []
-let gce = null
-const startOfGifParseTime = performance.now()
+      let imageDescriptorCounter = 0;
+      let endOfInfoCounter = 0;
+      let imageData = []
+      gif.dataBlocks = []
+      let gce = null
+      const startOfGifParseTime = performance.now()
       while (gif_idx < uint8.length) {
         if (uint8[gif_idx] === 0x21) {
           gif_idx += 1;
@@ -257,68 +257,68 @@ const startOfGifParseTime = performance.now()
               const disposalMethod = (packedFields >> 2) & 0b111
               const userInputFlag = (packedFields >> 1) & 0b1
               const transparentColorFlag = (packedFields) & 0b1
-              const delayTime = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4] // number of 1/100 seconds
+              const delayTime = (uint8[gif_idx + 3]) | (uint8[gif_idx + 4] << 8) // number of 1/100 seconds
               const transparentColorIndex = uint8[gif_idx + 5]
-gce = { disposalMethod, userInputFlag, transparentColorFlag, delayTime, transparentColorIndex }
+              gce = { disposalMethod, userInputFlag, transparentColorFlag, delayTime, transparentColorIndex }
               if (uint8[gif_idx + 6] !== 0) throw Error("should be block terminator")
               gif_idx += 7
               break;
             }
             case 0xff: // application extension
               {
-gce = null
+                gce = null
                 console.log("application")
                 const blockSize = 11 // fixed size
                 const applicationId = uint8.slice(gif_idx + 2, gif_idx + 2 + 8)
                 console.log(applicationId.reduce((acc, byte) => acc + String.fromCharCode(byte), ""))
                 const applicationAuthCode = uint8.slice(gif_idx + 2 + 8, gif_idx + 2 + 8 + 3)
                 gif_idx += 2 + 8 + 3
-const applicationDataSegments = []
-while (uint8[gif_idx] !== 0) {
-                const dataSubBlockSize = uint8[gif_idx]
-applicationDataSegments.push([gif_idx + 1, dataSubBlockSize])
-                gif_idx += dataSubBlockSize + 1
-}
-gif.dataBlocks.push({ type: 'application', applicationId, applicationAuthCode, applicationDataSegments })
-gif_idx += 1
+                const applicationDataSegments = []
+                while (uint8[gif_idx] !== 0) {
+                  const dataSubBlockSize = uint8[gif_idx]
+                  applicationDataSegments.push([gif_idx + 1, dataSubBlockSize])
+                  gif_idx += dataSubBlockSize + 1
+                }
+                gif.dataBlocks.push({ type: 'application', applicationId, applicationAuthCode, applicationDataSegments })
+                gif_idx += 1
                 break;
               }
             case 0xfe: // comment extension
               {
-gce = null
+                gce = null
                 console.log("comment")
                 gif_idx += 1
-const commentDataBlockSegments = []
-while (uint8[gif_idx] !== 0) {
-                const dataSubBlockSize = uint8[gif_idx]
-commentDataBlockSegments.push([gif_idx + 1, dataSubBlockSize])
-                gif_idx += dataSubBlockSize + 1
-}
-gif.dataBlocks.push({ type: 'comment', commentDataBlockSegments })
-gif_idx += 1
+                const commentDataBlockSegments = []
+                while (uint8[gif_idx] !== 0) {
+                  const dataSubBlockSize = uint8[gif_idx]
+                  commentDataBlockSegments.push([gif_idx + 1, dataSubBlockSize])
+                  gif_idx += dataSubBlockSize + 1
+                }
+                gif.dataBlocks.push({ type: 'comment', commentDataBlockSegments })
+                gif_idx += 1
                 break;
               }
             case 0x01: // plain text extension
               {
                 console.log("plain text")
                 const blockSize = 12 // fixed size
-                const textGridLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
-                const textGridTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
-                const textGridWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
-                const textGridHeight = (uint8[gif_idx + 7] << 8) | uint8[gif_idx + 8]
+                const textGridLeftPos = (uint8[gif_idx + 1]) | (uint8[gif_idx + 2] << 8)
+                const textGridTopPos = (uint8[gif_idx + 3]) | (uint8[gif_idx + 4] << 8)
+                const textGridWidth = (uint8[gif_idx + 5]) | (uint8[gif_idx + 6] << 8)
+                const textGridHeight = (uint8[gif_idx + 7]) | (uint8[gif_idx + 8] << 8)
                 const charCellWidth = uint8[gif_idx + 9]
                 const charCellHeight = uint8[gif_idx + 10]
                 const textForegroundColorIdx = uint8[gif_idx + 11]
                 const textBackgroundColorIdx = uint8[gif_idx + 12]
-gif_idx += 13
-const plainTextDataSegments = []
-while (uint8[gif_idx] !== 0) {
-                const dataSubBlockSize = uint8[gif_idx]
-plainTextDataSegments.push([gif_idx + 1, dataSubBlockSize])
-                gif_idx += 1 + dataSubBlockSize
-}
-gif.dataBlocks.push({ gce, textGridLeftPos, textGridTopPos, textGridWidth, textGridHeight, charCellWidth, charCellHeight, textForegroundColorIdx, textForegroundColorIdx, plainTextDataSegments })
-gif_idx += 1
+                gif_idx += 13
+                const plainTextDataSegments = []
+                while (uint8[gif_idx] !== 0) {
+                  const dataSubBlockSize = uint8[gif_idx]
+                  plainTextDataSegments.push([gif_idx + 1, dataSubBlockSize])
+                  gif_idx += 1 + dataSubBlockSize
+                }
+                gif.dataBlocks.push({ gce, textGridLeftPos, textGridTopPos, textGridWidth, textGridHeight, charCellWidth, charCellHeight, textForegroundColorIdx, textForegroundColorIdx, plainTextDataSegments })
+                gif_idx += 1
                 break;
               }
             default: {
@@ -330,14 +330,14 @@ gif_idx += 1
         } else if (uint8[gif_idx] === 0x2c) {
           console.log("image descriptor")
           imageDescriptorCounter++
-          const imageLeftPos = (uint8[gif_idx + 1] << 8) | uint8[gif_idx + 2]
-          const imageTopPos = (uint8[gif_idx + 3] << 8) | uint8[gif_idx + 4]
-          const imageWidth = (uint8[gif_idx + 5] << 8) | uint8[gif_idx + 6]
-          const imageHeight = (uint8[gif_idx + 7] << 8) | uint8[gif_idx + 8]
+          const imageLeftPos = (uint8[gif_idx + 1]) | (uint8[gif_idx + 2] << 8)
+          const imageTopPos = (uint8[gif_idx + 3]) | (uint8[gif_idx + 4] << 8)
+          const imageWidth = (uint8[gif_idx + 5]) | (uint8[gif_idx + 6] << 8)
+          const imageHeight = (uint8[gif_idx + 7]) | (uint8[gif_idx + 8] << 8)
           const packedFields = uint8[gif_idx + 9]
           const localColorTableExists = (packedFields >> 7) & 0b1
           const interlaceFlag = (packedFields >> 6) & 0b1
-          if (interlaceFlag) console.error('interlaced logic not implemented')
+          if (interlaceFlag) throw Error('interlaced logic not implemented')
           const sortFlag = (packedFields >> 5) & 0b1
           const reserved = (packedFields >> 3) & 0b11
           const localColorTableSize = packedFields & 0b111
@@ -392,6 +392,7 @@ gif_idx += 1
             }
             return null
           }
+          const imageData = []
           const start = performance.now()
           outer: while(Math.floor(bit_pos / 8) < bytesLength) {
             let idx = Math.floor(bit_pos / 8)
@@ -414,7 +415,7 @@ gif_idx += 1
               case clearCode: { resetTable(); continue }
             }
 
-            if (prev !== null && code !== clearCode) {
+            if (prev !== null) {
               if (table[code] === undefined) { // sometimes the encoders will output a code that is of the maximum table size
                 if (code !== table.length) {
                   console.error("only codes that would not be in the table that are also valid are ones that equal the table length; anything else is invalid data")
@@ -428,8 +429,10 @@ gif_idx += 1
                 ++currentCodeBitLength
               }
             }
+            imageData.push.apply(imageData, table[code])
             prev = code
           }
+          gif.dataBlocks.push({ type: "graphic block", gce, imageDescriptor, localColorTableSegment, imageData })
           console.log(performance.now() - start, 'time taken to decode image lzw data in ms')
           if (uint8[gif_idx] !== 0) throw Error("this should've been the data sub block terminator")
           gif_idx += 1
@@ -438,8 +441,9 @@ gif_idx += 1
           throw Error("UNHANDLED")
         }
       }
-      console.log('time to parse entire gif in ms', performance.now() - startOfGifParseTime)
+      console.log('time to parse entire gif in ms', performance.now() - startOfGifParseTime, imageDescriptorCounter)
       console.assert(imageDescriptorCounter === endOfInfoCounter)
+      return gif
     }
   </script>
   <script>
@@ -1362,6 +1366,17 @@ gif_idx += 1
         }
       }
     }
+    function addGIFContentItem(gif) {
+      const graphicBlock = gif.dataBlocks.find(data => data.type === "graphic block")
+      const width = graphicBlock.imageDescriptor.imageWidth
+      const height = graphicBlock.imageDescriptor.imageHeight
+      console.log(width, height, graphicBlock.imageData.length, gif.screenWidth, gif.screenHeight)
+      const imageDataForCanvas = new ImageData(width, height)
+      console.assert(width * height === graphicBlock.imageData.length)
+      //for (let i = 0; i < graphicBlock.imageData.length; ++i) {
+      //  imageDataForCanvas.data[dd]
+      //}
+    }
     function getDataTransferContent(dataTransfer) {
       const file = dataTransfer.files[0];
       if (file) {
@@ -1373,7 +1388,8 @@ gif_idx += 1
           dataTransfer.items[idxOfURI_List].getAsString(async t => {
             const blob = await fetch(t).then(r => r.blob())
             const arrayBuffer = await blob.arrayBuffer()
-            parseGIF(arrayBuffer)
+            const gif = parseGIF(arrayBuffer)
+            addGIFContentItem(gif)
           })
         } else {
           const idxOfTxtPlain = dataTransfer.types.indexOf("text/plain");
