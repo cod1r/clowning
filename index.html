@@ -598,6 +598,15 @@
           textControlsMenu.togglePopover()
         }
       }
+      let gifFrameScroller;
+      if (type === "gif") {
+        gifFrameScroller = document.createElement("input")
+        gifFrameScroller.setAttribute("type", "range")
+        gifFrameScroller.classList.add("focus-ui-controls")
+        gifFrameScroller.onpointerdown = () => {
+          selectedFocusUIControl = gifFrameScroller
+        }
+      }
       return {
         scale1,
         scale2,
@@ -608,7 +617,8 @@
         rightFocusBorder,
         bottomFocusBorder,
         rotateFocusControl,
-        textContentItemControls
+        textContentItemControls,
+        gifFrameScroller
       };
     }
 
@@ -726,7 +736,8 @@
         bottomFocusBorder,
         leftFocusBorder,
         rightFocusBorder,
-        textContentItemControls
+        textContentItemControls,
+        gifFrameScroller
       } = contentItemInfo.controls;
       root.appendChild(scale1);
       root.appendChild(scale2);
@@ -738,6 +749,7 @@
       root.appendChild(leftFocusBorder);
       root.appendChild(rightFocusBorder);
       if (textContentItemControls) root.appendChild(textContentItemControls)
+      if (gifFrameScroller) root.appendChild(gifFrameScroller)
     }
     function removeFocusControls() {
       const contentItemInfo = getContentItemInfo(focused_item);
@@ -752,7 +764,8 @@
         bottomFocusBorder,
         leftFocusBorder,
         rightFocusBorder,
-        textContentItemControls
+        textContentItemControls,
+        gifFrameScroller
       } = contentItemInfo.controls;
       // scale1, scale2, scale3 should not be present for text content items
       if (root.contains(scale1)) root.removeChild(scale1);
@@ -765,6 +778,7 @@
       if (root.contains(leftFocusBorder)) root.removeChild(leftFocusBorder);
       if (root.contains(rightFocusBorder)) root.removeChild(rightFocusBorder);
       if (root.contains(textContentItemControls)) root.removeChild(textContentItemControls)
+      if (root.contains(gifFrameScroller)) root.removeChild(gifFrameScroller)
       textControlsMenu.hidePopover()
     }
     function unfocus(element) {
@@ -801,7 +815,8 @@
           rightFocusBorder,
           bottomFocusBorder,
           rotateFocusControl,
-          textContentItemControls
+          textContentItemControls,
+          gifFrameScroller
         } = contentItemInfo.controls;
 
         const [widthvalue, heightvalue] = getFocusItemWidthHeight();
@@ -830,7 +845,8 @@
           [leftFocusBorder, Math.PI, halfWidth],
           [rightFocusBorder, 0, halfWidth],
           [rotateFocusControl, -Math.PI / 2, halfHeight + 40],
-          [textContentItemControls, 0, halfWidth + 40]
+          [textContentItemControls, 0, halfWidth + 40],
+          [gifFrameScroller, Math.PI / 2, halfHeight + 40]
         ];
         for (const [focus_control, angle_offset, length] of controlUIInfo) {
           // image content items do not have textContentItemControls
@@ -1346,8 +1362,7 @@
         }
       }
     }
-    function addGIFContentItem(gif) {
-      const graphicBlock = gif.dataBlocks.find(data => data.type === "graphic block")
+    function getImageDataFromGraphicBlock(gif, graphicBlock) {
       const width = graphicBlock.imageDescriptor.imageWidth
       const height = graphicBlock.imageDescriptor.imageHeight
       const imageDataForCanvas = new ImageData(width, height)
@@ -1388,23 +1403,37 @@
           imageDataForCanvas.data[i * 4 + 3] = 255
         }
       }
+      return imageDataForCanvas
+    }
+    function addGIFContentItem(gif) {
+      const graphicBlocks = gif.dataBlocks.filter(datablock => datablock.type && datablock.type === "graphic block")
+      const imageDatas = graphicBlocks.map(block => getImageDataFromGraphicBlock(gif, block))
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")
-      canvas.width = width
-      canvas.height = height
+      canvas.width = gif.screenWidth
+      canvas.height = gif.screenHeight
       canvas.draggable = false
       canvas.classList.add("content-item")
+      canvas.classList.add("gif-content-item")
+      const controls = createFocusControls("gif")
+      controls.gifFrameScroller.setAttribute("min", 0)
+      controls.gifFrameScroller.setAttribute("max", imageDatas.length - 1)
+      controls.gifFrameScroller.oninput = (e) => {
+        const frame = e.target.value
+        ctx.putImageData(imageDatas[frame], graphicBlocks[frame].imageDescriptor.imageLeftPos, graphicBlocks[frame].imageDescriptor.imageTopPos)
+      }
       contentItems.push({
         item: canvas,
         focusItemRotation: 0,
-        controls: createFocusControls(),
+        controls,
         canvas,
         drawContext: ctx,
-        gif
+        gif,
+        imageDatas
       });
       focused_item = canvas;
       content_area.appendChild(canvas);
-      ctx.putImageData(imageDataForCanvas, graphicBlock.imageDescriptor.imageLeftPos, graphicBlock.imageDescriptor.imageTopPos)
+      ctx.putImageData(imageDatas[0], graphicBlocks[0].imageDescriptor.imageLeftPos, graphicBlocks[0].imageDescriptor.imageTopPos)
     }
     function getDataTransferContent(dataTransfer) {
       const file = dataTransfer.files[0];
