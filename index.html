@@ -727,59 +727,16 @@
     function addFocusControls() {
       const contentItemInfo = getContentItemInfo(focused_item);
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
-      const {
-        scale1,
-        scale2,
-        scale3,
-        scale4,
-        rotateFocusControl,
-        topFocusBorder,
-        bottomFocusBorder,
-        leftFocusBorder,
-        rightFocusBorder,
-        textContentItemControls,
-        gifFrameScroller
-      } = contentItemInfo.controls;
-      root.appendChild(scale1);
-      root.appendChild(scale2);
-      root.appendChild(scale3);
-      root.appendChild(scale4);
-      root.appendChild(rotateFocusControl);
-      root.appendChild(topFocusBorder);
-      root.appendChild(bottomFocusBorder);
-      root.appendChild(leftFocusBorder);
-      root.appendChild(rightFocusBorder);
-      if (textContentItemControls) root.appendChild(textContentItemControls)
-      if (gifFrameScroller) root.appendChild(gifFrameScroller)
+      for (const element of Object.values(contentItemInfo.controls)) {
+        if (element) root.appendChild(element)
+      }
     }
     function removeFocusControls() {
       const contentItemInfo = getContentItemInfo(focused_item);
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
-      const {
-        scale1,
-        scale2,
-        scale3,
-        scale4,
-        rotateFocusControl,
-        topFocusBorder,
-        bottomFocusBorder,
-        leftFocusBorder,
-        rightFocusBorder,
-        textContentItemControls,
-        gifFrameScroller
-      } = contentItemInfo.controls;
-      // scale1, scale2, scale3 should not be present for text content items
-      if (root.contains(scale1)) root.removeChild(scale1);
-      if (root.contains(scale2)) root.removeChild(scale2);
-      if (root.contains(scale3)) root.removeChild(scale3);
-      if (root.contains(scale4)) root.removeChild(scale4);
-      if (root.contains(rotateFocusControl)) root.removeChild(rotateFocusControl);
-      if (root.contains(topFocusBorder)) root.removeChild(topFocusBorder);
-      if (root.contains(bottomFocusBorder)) root.removeChild(bottomFocusBorder);
-      if (root.contains(leftFocusBorder)) root.removeChild(leftFocusBorder);
-      if (root.contains(rightFocusBorder)) root.removeChild(rightFocusBorder);
-      if (root.contains(textContentItemControls)) root.removeChild(textContentItemControls)
-      if (root.contains(gifFrameScroller)) root.removeChild(gifFrameScroller)
+      for (const element of Object.values(contentItemInfo.controls)) {
+        if (root.contains(element)) root.removeChild(element)
+      }
       textControlsMenu.hidePopover()
     }
     function unfocus(element) {
@@ -1477,8 +1434,15 @@
     function getDataTransferContent(dataTransfer) {
       const file = dataTransfer.files[0];
       if (file) {
-        const imageUrl = URL.createObjectURL(file);
-        createNewImageContentItem(imageUrl);
+        if (file.type === "image/gif") {
+          file.arrayBuffer().then(arrayBuffer => {
+            const gif = parseGIF(arrayBuffer, true)
+            addGIFContentItem(gif)
+          }).catch(e => console.error(e))
+        } else {
+          const imageUrl = URL.createObjectURL(file);
+          createNewImageContentItem(imageUrl);
+        }
       } else {
         const idxOfURI_List = dataTransfer.types.indexOf("text/uri-list")
         if (dataTransfer.items[idxOfURI_List]) {
