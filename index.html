@@ -603,6 +603,7 @@
         gifFrameScroller = document.createElement("input")
         gifFrameScroller.setAttribute("type", "range")
         gifFrameScroller.classList.add("focus-ui-controls")
+        gifFrameScroller.setAttribute("value", 0)
         gifFrameScroller.onpointerdown = () => {
           selectedFocusUIControl = gifFrameScroller
         }
@@ -1406,6 +1407,7 @@
       return imageDataForCanvas
     }
     function addGIFContentItem(gif) {
+      if (focused_item) removeFocusControls();
       const graphicBlocks = gif.dataBlocks.filter(datablock => datablock.type && datablock.type === "graphic block")
       const imageDatas = graphicBlocks.map(block => getImageDataFromGraphicBlock(gif, block))
       const canvas = document.createElement("canvas")
@@ -1418,8 +1420,16 @@
       const controls = createFocusControls("gif")
       controls.gifFrameScroller.setAttribute("min", 0)
       controls.gifFrameScroller.setAttribute("max", imageDatas.length - 1)
+      const backgroundColor = gif.globalColorTableExists ? [
+        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3],
+        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3 + 1],
+        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3 + 2],
+        255
+      ] : [0, 0, 0, 0]
       controls.gifFrameScroller.oninput = (e) => {
         const frame = e.target.value
+        ctx.fillStyle = `rgb(${backgroundColor[0]} ${backgroundColor[1]} ${backgroundColor[2]} / ${backgroundColor[3] / 255})`
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
         ctx.putImageData(imageDatas[frame], graphicBlocks[frame].imageDescriptor.imageLeftPos, graphicBlocks[frame].imageDescriptor.imageTopPos)
       }
       contentItems.push({
@@ -1433,6 +1443,8 @@
       });
       focused_item = canvas;
       content_area.appendChild(canvas);
+      ctx.fillStyle = `rgb(${backgroundColor[0]} ${backgroundColor[1]} ${backgroundColor[2]} / ${backgroundColor[3] / 255})`
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
       ctx.putImageData(imageDatas[0], graphicBlocks[0].imageDescriptor.imageLeftPos, graphicBlocks[0].imageDescriptor.imageTopPos)
     }
     function getDataTransferContent(dataTransfer) {
