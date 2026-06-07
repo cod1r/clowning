@@ -1504,13 +1504,17 @@
     document.addEventListener("pointerdown", pointerDownHandler);
     document.addEventListener("copy", async () => {
       if (focused_item) {
-        // using width and height properties here because the focused_item in this context should
-        // always be an image content item
-        const { canvas } = getContentItemInfo(focused_item);
-        canvas.toBlob(async (blob) => {
-          let clipboardData = { "image/png": blob };
-          await navigator.clipboard.write([new ClipboardItem(clipboardData)]);
-        });
+        if (focused_item.classList.contains("text-content-item")) {
+          const contentItem = getContentItemInfo()
+          let clipboardData = { "text/plain": contentItem.textContent.join("") };
+          await navigator.clipboard.write([new ClipboardItem(clipboardData)])
+        } else {
+          const { canvas } = getContentItemInfo(focused_item);
+          canvas.toBlob(async (blob) => {
+            let clipboardData = { "image/png": blob };
+            await navigator.clipboard.write([new ClipboardItem(clipboardData)]);
+          });
+        }
       }
     });
     document.addEventListener(
@@ -1582,6 +1586,9 @@
           throw Error("TODO IMPLEMENT HIGHLIGHT FOR CANVAS")
         }
         return;
+      }
+      if (e.key === "c" && e.metaKey) {
+        return
       }
       if (e.key) {
         if (e.key === "Backspace") {

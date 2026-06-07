@@ -1,0 +1,2 @@
+play button for gifs
+collapsing canvas contents together
