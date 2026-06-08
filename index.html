@@ -599,6 +599,7 @@
         }
       }
       let gifFrameScroller;
+      let gifPlayer;
       if (type === "gif") {
         gifFrameScroller = document.createElement("input")
         gifFrameScroller.setAttribute("type", "range")
@@ -606,7 +607,36 @@
         gifFrameScroller.setAttribute("value", 0)
         gifFrameScroller.onpointerdown = () => {
           selectedFocusUIControl = gifFrameScroller
+          gifPlayer.dataset.state = "paused"
         }
+
+        gifPlayer = document.createElement("div")
+        gifPlayer.classList.add("focus-ui-controls")
+        gifPlayer.style.width = "25px";
+        gifPlayer.style.height = "25px";
+        gifPlayer.style.borderRadius = "30px 30px";
+        gifPlayer.style.display = "flex";
+        gifPlayer.style.alignItems = "center";
+        gifPlayer.style.justifyContent = "center";
+        gifPlayer.style.backgroundColor = "blue"
+
+        const playButton = document.createElement("div")
+        playButton.style.width = "10px"
+        playButton.style.height = "10px"
+        playButton.style.clipPath = "polygon(0% 0%, 100% 50%, 0% 100%)"
+        playButton.style.backgroundColor = "white"
+        playButton.style.pointerEvents = "none"
+
+        const pauseButton = document.createElement("div")
+        pauseButton.style.width = "10px"
+        pauseButton.style.height = "10px"
+        pauseButton.style.background = "linear-gradient(to right, white 33.3%, blue 33.3% 66.67%, white 66.67% 100%)"
+        pauseButton.style.pointerEvents = "none"
+
+        gifPlayer.appendChild(playButton)
+        gifPlayer.appendChild(pauseButton)
+        gifPlayer.dataset.state = "paused"
+        pauseButton.style.display = "none"
       }
       return {
         scale1,
@@ -619,7 +649,8 @@
         bottomFocusBorder,
         rotateFocusControl,
         textContentItemControls,
-        gifFrameScroller
+        gifFrameScroller,
+        gifPlayer
       };
     }
 
@@ -774,7 +805,8 @@
           bottomFocusBorder,
           rotateFocusControl,
           textContentItemControls,
-          gifFrameScroller
+          gifFrameScroller,
+          gifPlayer
         } = contentItemInfo.controls;
 
         const [widthvalue, heightvalue] = getFocusItemWidthHeight();
@@ -804,7 +836,8 @@
           [rightFocusBorder, 0, halfWidth],
           [rotateFocusControl, -Math.PI / 2, halfHeight + 40],
           [textContentItemControls, 0, halfWidth + 40],
-          [gifFrameScroller, Math.PI / 2, halfHeight + 40]
+          [gifFrameScroller, Math.PI / 2, halfHeight + 40],
+          [gifPlayer, 0, halfWidth + 40]
         ];
         for (const [focus_control, angle_offset, length] of controlUIInfo) {
           // image content items do not have textContentItemControls
@@ -1381,6 +1414,36 @@
       canvas.classList.add("content-item")
       canvas.classList.add("gif-content-item")
       const controls = createFocusControls("gif")
+
+      controls.gifPlayer.onpointerdown = () => {
+        selectedFocusUIControl = controls.gifPlayer
+        let playTimeoutId;
+        const playButton = controls.gifPlayer.children[0]
+        const pauseButton = controls.gifPlayer.children[1]
+        function playGIF() {
+          if (!gif || !controls.gifPlayer || controls.gifPlayer.dataset.state === "paused") return
+          const frame = +controls.gifFrameScroller.value
+          const graphicBlocks = gif.dataBlocks.filter(block => block.type === "graphic block")
+          const imageDescriptor = graphicBlocks[frame].imageDescriptor
+          controls.gifFrameScroller.value = (frame + 1) % graphicBlocks.length
+          ctx.drawImage(imageBitmaps[frame], imageDescriptor.imageLeftPos, imageDescriptor.imageTopPos)
+          const actualDelayTime = graphicBlocks[(frame + 1) % graphicBlocks.length].gce.delayTime * 1/100 * 1000
+          playTimeoutId = setTimeout(playGIF, actualDelayTime)
+        }
+        if (controls.gifPlayer.dataset.state === "paused") {
+          controls.gifPlayer.dataset.state = "playing"
+          pauseButton.style.display = ""
+          playButton.style.display = "none"
+          playGIF()
+        } else if (controls.gifPlayer.dataset.state === "playing") {
+          controls.gifPlayer.dataset.state = "paused"
+          pauseButton.style.display = "none"
+          playButton.style.display = ""
+          clearTimeout(playTimeoutId)
+        } else {
+          throw Error("what the fuck is the state in")
+        }
+      }
       controls.gifFrameScroller.setAttribute("min", 0)
       controls.gifFrameScroller.setAttribute("max", imageBitmaps.length - 1)
       const backgroundColor = gif.globalColorTableExists ? [
