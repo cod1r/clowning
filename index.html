@@ -638,6 +638,16 @@
         gifPlayer.dataset.state = "paused"
         pauseButton.style.display = "none"
       }
+      let collapseButton;
+      if (type !== "gif") {
+        collapseButton = document.createElement("div")
+        collapseButton.classList.add("focus-ui-controls")
+        collapseButton.style.width = "25px";
+        collapseButton.style.height = "25px";
+        collapseButton.style.borderRadius = "30px 30px";
+        collapseButton.style.backgroundColor = "blue"
+        collapseButton.textContent = ""
+      }
       return {
         scale1,
         scale2,
@@ -650,7 +660,8 @@
         rotateFocusControl,
         textContentItemControls,
         gifFrameScroller,
-        gifPlayer
+        gifPlayer,
+        collapseButton
       };
     }
 
@@ -1361,7 +1372,7 @@
       const colorTableSegment = graphicBlock.localColorTableSegment ? graphicBlock.localColorTableSegment : gif.globalColorTable
       if (!colorTableSegment) throw Error("no color table")
       const [start, size] = colorTableSegment
-      const transparentIndex = graphicBlock.gce.transparentColorIndex
+      const transparentIndex = graphicBlock.gce && graphicBlock.gce.transparentColorIndex
       const interlaced = graphicBlock.imageDescriptor.interlaceFlag
       if (interlaced) {
         const passes = [
@@ -1427,7 +1438,7 @@
           const imageDescriptor = graphicBlocks[frame].imageDescriptor
           controls.gifFrameScroller.value = (frame + 1) % graphicBlocks.length
           ctx.drawImage(imageBitmaps[frame], imageDescriptor.imageLeftPos, imageDescriptor.imageTopPos)
-          const actualDelayTime = graphicBlocks[(frame + 1) % graphicBlocks.length].gce.delayTime * 1/100 * 1000
+          const actualDelayTime = graphicBlocks[(frame + 1) % graphicBlocks.length].gce ? graphicBlocks[(frame + 1) % graphicBlocks.length].gce.delayTime * 1/100 * 1000 : 0
           playTimeoutId = setTimeout(playGIF, actualDelayTime)
         }
         if (controls.gifPlayer.dataset.state === "paused") {
@@ -1662,7 +1673,7 @@
           ) {
             focused_item.firstChild.remove();
           } else if (
-            focused_item
+            focused_item && !textControlsMenu.matches(":popover-open")
           ) {
             content_area.removeChild(focused_item);
             removeFocusControls();

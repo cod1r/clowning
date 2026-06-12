@@ -1,2 +1,4 @@
-play button for gifs
+edit mode for gifs
+  the goal should be to be able to create meme gifs that are good
 collapsing canvas contents together
+add basic method for drawing
