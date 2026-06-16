@@ -538,7 +538,7 @@
           return;
         }
         selectedFocusUIControl = scale1;
-        const [, , , bottomRightCorner] = calculateCornersBasedOnRotation(scale1);
+        const [, , , bottomRightCorner] = calculateCornersBasedOnRotation(scale1, true);
         const [bottomRightX, bottomRightY] = bottomRightCorner;
         offsetForPointer = [e.clientX - bottomRightX, e.clientY - bottomRightY];
       };
@@ -547,7 +547,7 @@
           return;
         }
         selectedFocusUIControl = scale2;
-        const [, , bottomLeftCorner] = calculateCornersBasedOnRotation(scale2);
+        const [, , bottomLeftCorner] = calculateCornersBasedOnRotation(scale2, true);
         const [bottomLeftX, bottomLeftY] = bottomLeftCorner;
         offsetForPointer = [e.clientX - bottomLeftX, e.clientY - bottomLeftY];
       };
@@ -556,7 +556,7 @@
           return;
         }
         selectedFocusUIControl = scale3;
-        const [, topRightCorner] = calculateCornersBasedOnRotation(scale3);
+        const [, topRightCorner] = calculateCornersBasedOnRotation(scale3, true);
         const [topRightX, topRightY] = topRightCorner;
         offsetForPointer = [e.clientX - topRightX, e.clientY - topRightY];
       };
@@ -565,7 +565,7 @@
           return;
         }
         selectedFocusUIControl = scale4;
-        const [topLeftCorner] = calculateCornersBasedOnRotation(scale4);
+        const [topLeftCorner] = calculateCornersBasedOnRotation(scale4, true);
         const [topLeftX, topLeftY] = topLeftCorner;
         offsetForPointer = [e.clientX - topLeftX, e.clientY - topLeftY];
       };
@@ -641,12 +641,16 @@
       let collapseButton;
       if (type !== "gif") {
         collapseButton = document.createElement("div")
+        collapseButton.style.display = "flex"
+        collapseButton.style.alignItems = "center"
+        collapseButton.style.justifyContent = "center"
         collapseButton.classList.add("focus-ui-controls")
         collapseButton.style.width = "25px";
         collapseButton.style.height = "25px";
         collapseButton.style.borderRadius = "30px 30px";
         collapseButton.style.backgroundColor = "blue"
-        collapseButton.textContent = ""
+        collapseButton.textContent = "\u{2193}"
+        collapseButton.style.color = "white"
       }
       return {
         scale1,
@@ -677,38 +681,26 @@
 
     function getFocusItemWidthHeight() {
       if (focused_item === null) throw Error("why are you calling this when focused_item is null");
-      // handles both images and divs for getting the sizes
-      const widthvalue =
-        focused_item.classList.contains("text-content-item") ? parseInt(focused_item.style.width) : focused_item.width;
-      const heightvalue =
-        focused_item.classList.contains("text-content-item")
-          ? parseInt(focused_item.style.height)
-          : focused_item.height;
+      const widthvalue = focused_item.width;
+      const heightvalue = focused_item.height;
       return [widthvalue, heightvalue];
     }
 
-    /* this function should only be used for focus controls or the focused item */
-    function calculateCornersBasedOnRotation(element) {
+    function calculateCornersBasedOnRotation(element, not_content_item=false) {
       if (element === null) throw Error("element is null");
       const { x, y, width, height } = element.getBoundingClientRect();
       const x_center = x + width / 2;
       const y_center = y + height / 2;
-      const matrix = new DOMMatrix(getComputedStyle(focused_item).transform);
+      const matrix = new DOMMatrix(getComputedStyle(element).transform);
       const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
       const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
-      const [widthvalue, heightvalue] = getFocusItemWidthHeight();
-      const actualHalfWidth =
-        element === focused_item
-          ? (widthvalue / 2) * contentAreaMatrix.a * scaleX
-          : parseInt(element.style.width) / 2;
-      const actualHalfHeight =
-        element === focused_item
-          ? (heightvalue / 2) * contentAreaMatrix.a * scaleY
-          : parseInt(element.style.height) / 2;
+      const [widthvalue, heightvalue] = [element.width ?? parseInt(element.style.width), element.height ?? parseInt(element.style.height)];
+      const actualHalfWidth = (widthvalue / 2) * contentAreaMatrix.a * scaleX
+      const actualHalfHeight = (heightvalue / 2) * contentAreaMatrix.a * scaleY
       const dist = Math.hypot(actualHalfWidth, actualHalfHeight);
 
       function getXY(angle_offset) {
-        const contentItemInfo = getContentItemInfo(focused_item);
+        const contentItemInfo = not_content_item ? getContentItemInfo() : contentItems.find(item => item.item === element);
         if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined");
         const focusItemRotation = contentItemInfo.focusItemRotation;
         return [
@@ -817,7 +809,8 @@
           rotateFocusControl,
           textContentItemControls,
           gifFrameScroller,
-          gifPlayer
+          gifPlayer,
+          collapseButton
         } = contentItemInfo.controls;
 
         const [widthvalue, heightvalue] = getFocusItemWidthHeight();
@@ -848,7 +841,8 @@
           [rotateFocusControl, -Math.PI / 2, halfHeight + 40],
           [textContentItemControls, 0, halfWidth + 40],
           [gifFrameScroller, Math.PI / 2, halfHeight + 40],
-          [gifPlayer, 0, halfWidth + 40]
+          [gifPlayer, 0, halfWidth + 40],
+          [collapseButton, Math.PI, halfWidth + 40]
         ];
         for (const [focus_control, angle_offset, length] of controlUIInfo) {
           // image content items do not have textContentItemControls
@@ -1016,6 +1010,52 @@
       }
       if (focused_item && focused_item.classList.contains("text-content-item")) syncTextControls()
     }
+    function SATCollision() {
+      if (focused_item === null) throw Error("why check for collision if there is no focused_item")
+      const perpendicularVectorsToEdges = []
+      for (let i = 0; i < contentItems.length; ++i) {
+        const { item } = contentItems[i]
+        const [topLeftCorner, topRightCorner, bottomLeftCorner,] = calculateCornersBasedOnRotation(item)
+        const [topLeftX, topLeftY] = topLeftCorner
+        const [topRightX, topRightY] = topRightCorner
+        const [bottomLeftX, bottomLeftY] = bottomLeftCorner
+        const topEdge = [topRightX - topLeftX, topRightY - topLeftY]
+        const topEdgeMag = Math.hypot(topEdge[0], topEdge[1])
+        const leftEdge = [bottomLeftX - topLeftX, bottomLeftY - topLeftY]
+        const leftEdgeMag = Math.hypot(leftEdge[0], leftEdge[1])
+        const normPerpTopEdge = [topEdge[1] / topEdgeMag, -topEdge[0] / topEdgeMag]
+        const normPerpLeftEdge = [leftEdge[1] / leftEdgeMag, -leftEdge[0] / leftEdgeMag]
+        perpendicularVectorsToEdges.push(normPerpTopEdge)
+        perpendicularVectorsToEdges.push(normPerpLeftEdge)
+      }
+      function dotProductProjection(normPerpVector, vertexVector) {
+        return normPerpVector[0] * vertexVector[0] + normPerpVector[1] * vertexVector[1]
+      }
+      for (let i = 0; i < perpendicularVectorsToEdges.length; ++i) {
+        const normPerpVector = perpendicularVectorsToEdges[i]
+
+        const cornersForFocusedItem = calculateCornersBasedOnRotation(focused_item)
+        const minProjectionValueFOCUSED = cornersForFocusedItem.reduce((acc, vertexVector) =>
+          Math.min(dotProductProjection(normPerpVector, vertexVector), acc), Number.MAX_SAFE_INTEGER)
+        const maxProjectionValueFOCUSED = cornersForFocusedItem.reduce((acc, vertexVector) =>
+          Math.max(dotProductProjection(normPerpVector, vertexVector), acc), Number.MIN_SAFE_INTEGER)
+
+        for (let j = 0; j < contentItems.length; ++j) {
+          const { item } = contentItems[j]
+          if (item === focused_item) continue
+          const corners = calculateCornersBasedOnRotation(item)
+          const minProjectionValue = corners.reduce((acc, vertexVector) =>
+            Math.min(dotProductProjection(normPerpVector, vertexVector), acc), Number.MAX_SAFE_INTEGER)
+          const maxProjectionValue = corners.reduce((acc, vertexVector) =>
+            Math.max(dotProductProjection(normPerpVector, vertexVector), acc), Number.MIN_SAFE_INTEGER)
+
+          if (maxProjectionValue < minProjectionValueFOCUSED || maxProjectionValueFOCUSED < minProjectionValue) {
+            return false;
+          }
+        }
+      }
+      return contentItems.filter(item => item.item !== focused_item).length > 0;
+    }
     function moveGrabbedItem(e) {
       if (
         pointer_down === false ||
@@ -1075,6 +1115,7 @@
         );
         focused_item.style.transform = matrix.toString();
       }
+      console.log(SATCollision())
       alignFocusControls();
     }
     function moveFocusUIControl(e) {
