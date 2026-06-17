@@ -1456,6 +1456,7 @@
     }
     async function addGIFContentItem(gif) {
       if (focused_item) removeFocusControls();
+      // there's no guarantee that the images in the gif are sorted by default
       const graphicBlocks = gif.dataBlocks.filter(datablock => datablock.type && datablock.type === "graphic block")
       const imageBitmaps = await Promise.all(graphicBlocks.map(async block => await getImageDataFromGraphicBlock(gif, block)))
       const canvas = document.createElement("canvas")
@@ -1466,7 +1467,37 @@
       canvas.classList.add("content-item")
       canvas.classList.add("gif-content-item")
       const controls = createFocusControls("gif")
-
+      const backgroundColor = gif.globalColorTableExists ? [
+        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3],
+        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3 + 1],
+        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3 + 2],
+        255
+      ] : [0, 0, 0, 0]
+      function disposeFrame(n) {
+        const x = graphicBlocks[n].imageDescriptor.imageLeftPos
+        const y = graphicBlocks[n].imageDescriptor.imageTopPos
+        const width = graphicBlocks[n].imageDescriptor.imageWidth
+        const height = graphicBlocks[n].imageDescriptor.imageHeight
+        if (graphicBlocks[n].gce) {
+          switch (graphicBlocks[n].gce.disposalMethod) {
+            case 0: break
+            case 1: break
+            case 2:
+              ctx.fillStyle = `rgb(${backgroundColor[0]} ${backgroundColor[1]} ${backgroundColor[2]} / ${backgroundColor[3] / 255})`
+              ctx.fillRect(x, y, width, height)
+              break
+            case 3:
+              ctx.clearRect(x, y, width, height)
+              for (let j = 0; j < n; ++j) {
+                ctx.drawImage(imageBitmaps[j], graphicBlocks[j].imageDescriptor.imageLeftPos, graphicBlocks[j].imageDescriptor.imageTopPos)
+              }
+              break
+            default: break
+          }
+        } else {
+          ctx.clearRect(x, y, width, height)
+        }
+      }
       controls.gifPlayer.onpointerdown = () => {
         selectedFocusUIControl = controls.gifPlayer
         let playTimeoutId;
@@ -1475,11 +1506,13 @@
         function playGIF() {
           if (!gif || !controls.gifPlayer || controls.gifPlayer.dataset.state === "paused") return
           const frame = +controls.gifFrameScroller.value
+          if (frame) { disposeFrame(frame - 1) } else { disposeFrame(imageBitmaps.length - 1) }
           const graphicBlocks = gif.dataBlocks.filter(block => block.type === "graphic block")
           const imageDescriptor = graphicBlocks[frame].imageDescriptor
           controls.gifFrameScroller.value = (frame + 1) % graphicBlocks.length
           ctx.drawImage(imageBitmaps[frame], imageDescriptor.imageLeftPos, imageDescriptor.imageTopPos)
-          const actualDelayTime = graphicBlocks[(frame + 1) % graphicBlocks.length].gce ? graphicBlocks[(frame + 1) % graphicBlocks.length].gce.delayTime * 1/100 * 1000 : 0
+          const actualDelayTime = graphicBlocks[(frame + 1) % graphicBlocks.length].gce ?
+            graphicBlocks[(frame + 1) % graphicBlocks.length].gce.delayTime * 1/100 * 1000 : 0
           playTimeoutId = setTimeout(playGIF, actualDelayTime)
         }
         if (controls.gifPlayer.dataset.state === "paused") {
@@ -1498,37 +1531,11 @@
       }
       controls.gifFrameScroller.setAttribute("min", 0)
       controls.gifFrameScroller.setAttribute("max", imageBitmaps.length - 1)
-      const backgroundColor = gif.globalColorTableExists ? [
-        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3],
-        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3 + 1],
-        gif.buffer[gif.globalColorTable[0] + gif.backgroundColorIndex * 3 + 2],
-        255
-      ] : [0, 0, 0, 0]
       controls.gifFrameScroller.oninput = (e) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         const frame = parseInt(e.target.value)
         for (let i = 0; i < frame; ++i) {
-          if (i) {
-            const x = graphicBlocks[i - 1].imageDescriptor.imageLeftPos
-            const y = graphicBlocks[i - 1].imageDescriptor.imageTopPos
-            const width = graphicBlocks[i - 1].imageDescriptor.imageWidth
-            const height = graphicBlocks[i - 1].imageDescriptor.imageHeight
-            switch (graphicBlocks[i - 1].gce.disposalMethod) {
-              case 0: break
-              case 1: break
-              case 2:
-                ctx.fillStyle = `rgb(${backgroundColor[0]} ${backgroundColor[1]} ${backgroundColor[2]} / ${backgroundColor[3] / 255})`
-                ctx.fillRect(x, y, width, height)
-                break
-              case 3:
-                ctx.clearRect(x, y, width, height)
-                for (let j = 0; j < i - 1; ++j) {
-                  ctx.drawImage(imageBitmaps[j], graphicBlocks[j].imageDescriptor.imageLeftPos, graphicBlocks[j].imageDescriptor.imageTopPos)
-                }
-                break
-              default: break
-            }
-          }
+          if (i) { disposeFrame(i - 1, imageBitmaps) } else { disposeFrame(frame - 1) }
           ctx.drawImage(imageBitmaps[i], graphicBlocks[i].imageDescriptor.imageLeftPos, graphicBlocks[i].imageDescriptor.imageTopPos)
         }
         ctx.drawImage(imageBitmaps[frame], graphicBlocks[frame].imageDescriptor.imageLeftPos, graphicBlocks[frame].imageDescriptor.imageTopPos)
