@@ -651,6 +651,8 @@
         collapseButton.style.backgroundColor = "blue"
         collapseButton.textContent = "\u{2193}"
         collapseButton.style.color = "white"
+        collapseButton.style.pointerEvents = "none"
+        collapseButton.style.opacity = "0.5"
       }
       return {
         scale1,
@@ -681,8 +683,11 @@
 
     function getFocusItemWidthHeight() {
       if (focused_item === null) throw Error("why are you calling this when focused_item is null");
-      const widthvalue = focused_item.width;
-      const heightvalue = focused_item.height;
+      // is_text_content_item is needed because text content items, when resized, the width/height style properties
+      // are changed alongside the canvas width/height properties
+      const is_text_content_item = focused_item.classList.contains("text-content-item")
+      const widthvalue = is_text_content_item ? parseInt(focused_item.style.width) : focused_item.width;
+      const heightvalue = is_text_content_item ? parseInt(focused_item.style.height) : focused_item.height;
       return [widthvalue, heightvalue];
     }
 
@@ -694,7 +699,10 @@
       const matrix = new DOMMatrix(getComputedStyle(element).transform);
       const scaleX = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
       const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
-      const [widthvalue, heightvalue] = [element.width ?? parseInt(element.style.width), element.height ?? parseInt(element.style.height)];
+      // text content items need to access it's css width/height properties and scale buttons are passed into this
+      // function as well
+      const [widthvalue, heightvalue] = element.classList.contains("text-content-item") || not_content_item ?
+        [parseInt(element.style.width), parseInt(element.style.height)] : [element.width, element.height];
       const actualHalfWidth = (widthvalue / 2) * contentAreaMatrix.a * scaleX
       const actualHalfHeight = (heightvalue / 2) * contentAreaMatrix.a * scaleY
       const dist = Math.hypot(actualHalfWidth, actualHalfHeight);
@@ -1010,11 +1018,10 @@
       }
       if (focused_item && focused_item.classList.contains("text-content-item")) syncTextControls()
     }
-    function SATCollision() {
+    function SATCollision(item) {
       if (focused_item === null) throw Error("why check for collision if there is no focused_item")
       const perpendicularVectorsToEdges = []
-      for (let i = 0; i < contentItems.length; ++i) {
-        const { item } = contentItems[i]
+      function getNormPerpVectors(item) {
         const [topLeftCorner, topRightCorner, bottomLeftCorner,] = calculateCornersBasedOnRotation(item)
         const [topLeftX, topLeftY] = topLeftCorner
         const [topRightX, topRightY] = topRightCorner
@@ -1028,6 +1035,8 @@
         perpendicularVectorsToEdges.push(normPerpTopEdge)
         perpendicularVectorsToEdges.push(normPerpLeftEdge)
       }
+      getNormPerpVectors(focused_item)
+      getNormPerpVectors(item)
       function dotProductProjection(normPerpVector, vertexVector) {
         return normPerpVector[0] * vertexVector[0] + normPerpVector[1] * vertexVector[1]
       }
@@ -1040,18 +1049,14 @@
         const maxProjectionValueFOCUSED = cornersForFocusedItem.reduce((acc, vertexVector) =>
           Math.max(dotProductProjection(normPerpVector, vertexVector), acc), Number.MIN_SAFE_INTEGER)
 
-        for (let j = 0; j < contentItems.length; ++j) {
-          const { item } = contentItems[j]
-          if (item === focused_item) continue
-          const corners = calculateCornersBasedOnRotation(item)
-          const minProjectionValue = corners.reduce((acc, vertexVector) =>
-            Math.min(dotProductProjection(normPerpVector, vertexVector), acc), Number.MAX_SAFE_INTEGER)
-          const maxProjectionValue = corners.reduce((acc, vertexVector) =>
-            Math.max(dotProductProjection(normPerpVector, vertexVector), acc), Number.MIN_SAFE_INTEGER)
+        const corners = calculateCornersBasedOnRotation(item)
+        const minProjectionValue = corners.reduce((acc, vertexVector) =>
+          Math.min(dotProductProjection(normPerpVector, vertexVector), acc), Number.MAX_SAFE_INTEGER)
+        const maxProjectionValue = corners.reduce((acc, vertexVector) =>
+          Math.max(dotProductProjection(normPerpVector, vertexVector), acc), Number.MIN_SAFE_INTEGER)
 
-          if (maxProjectionValue < minProjectionValueFOCUSED || maxProjectionValueFOCUSED < minProjectionValue) {
-            return false;
-          }
+        if (maxProjectionValue < minProjectionValueFOCUSED || maxProjectionValueFOCUSED < minProjectionValue) {
+          return false;
         }
       }
       return contentItems.filter(item => item.item !== focused_item).length > 0;
@@ -1115,7 +1120,26 @@
         );
         focused_item.style.transform = matrix.toString();
       }
-      console.log(SATCollision())
+      if (!focused_item.classList.contains("gif-content-item")) {
+        const colliding = contentItems.filter(({ item }) =>
+          item !== focused_item &&
+          !item.classList.contains("gif-content-item") &&
+          SATCollision(item))
+        const mostUpFrontContentItem = colliding.find(({ item }) => item === content_area.children[content_area.children.length - 2])
+        const { controls } = getContentItemInfo()
+        const { collapseButton } = controls
+        if (mostUpFrontContentItem) {
+          if (collapseButton) {
+            collapseButton.style.pointerEvents = ""
+            collapseButton.style.opacity = "1"
+          }
+        } else {
+          if (collapseButton) {
+            collapseButton.style.pointerEvents = "none"
+            collapseButton.style.opacity = "0.5"
+          }
+        }
+      }
       alignFocusControls();
     }
     function moveFocusUIControl(e) {
@@ -1180,7 +1204,6 @@
           throw Error("scale_element is not any of the focus scale controls");
         }
         function getScaleOrigin(scale_control) {
-          const [widthvalue, heightvalue] = getFocusItemWidthHeight();
           switch (scale_control) {
             case scale1:
               return [widthvalue / 2, heightvalue / 2];
