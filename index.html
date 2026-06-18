@@ -1643,6 +1643,7 @@
     window.addEventListener("drop", (e) => e.preventDefault());
     document.addEventListener("drop", getContentClipboardOrDrop);
     document.addEventListener("dragover", (e) => e.preventDefault());
+    document.addEventListener("dragstart", (e) => e.preventDefault());
     document.addEventListener("paste", getContentClipboardOrDrop);
     document.addEventListener("pointermove", pointerMoveHandler);
     document.addEventListener("pointerup", pointerUpHandler);
