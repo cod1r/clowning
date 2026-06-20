@@ -691,6 +691,11 @@
       return [widthvalue, heightvalue];
     }
 
+    function getContentItemWidthHeight(element) {
+      return element.classList.contains("text-content-item") ?
+        [parseInt(element.style.width), parseInt(element.style.height)] : [element.width, element.height]
+    }
+
     function calculateCornersBasedOnRotation(element, not_content_item=false) {
       if (element === null) throw Error("element is null");
       const { x, y, width, height } = element.getBoundingClientRect();
@@ -767,14 +772,14 @@
     }
 
     function addFocusControls() {
-      const contentItemInfo = getContentItemInfo(focused_item);
+      const contentItemInfo = getContentItemInfo();
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
       for (const element of Object.values(contentItemInfo.controls)) {
         if (element) root.appendChild(element)
       }
     }
     function removeFocusControls() {
-      const contentItemInfo = getContentItemInfo(focused_item);
+      const contentItemInfo = getContentItemInfo();
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
       for (const element of Object.values(contentItemInfo.controls)) {
         if (root.contains(element)) root.removeChild(element)
@@ -802,7 +807,7 @@
         const focusedMatrix = new DOMMatrix(getComputedStyle(focused_item).transform);
         const scaleX = Math.sqrt(focusedMatrix.a ** 2 + focusedMatrix.b ** 2);
         const scaleY = Math.sqrt(focusedMatrix.c ** 2 + focusedMatrix.d ** 2);
-        const contentItemInfo = getContentItemInfo(focused_item);
+        const contentItemInfo = getContentItemInfo();
         if (contentItemInfo === undefined) throw Error("contentItemInfo is undefined");
 
         const {
@@ -1108,7 +1113,7 @@
       const scaleY = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
       const hypot = Math.hypot(tX, tY);
       const angle = Math.acos(tX / hypot) * (tY === 0 ? 1 : Math.sign(tY));
-      const contentItemInfo = getContentItemInfo(focused_item);
+      const contentItemInfo = getContentItemInfo();
       if (contentItemInfo === undefined) throw Error("content item info is undefined");
       const angle_between = angle - contentItemInfo.focusItemRotation;
       const tx_amt = Math.cos(angle_between) * hypot;
@@ -1126,12 +1131,46 @@
           !item.classList.contains("gif-content-item") &&
           SATCollision(item))
         const mostUpFrontContentItem = colliding.find(({ item }) => item === content_area.children[content_area.children.length - 2])
-        const { controls } = getContentItemInfo()
+        const { controls, focusItemRotation } = getContentItemInfo()
         const { collapseButton } = controls
         if (mostUpFrontContentItem) {
           if (collapseButton) {
             collapseButton.style.pointerEvents = ""
             collapseButton.style.opacity = "1"
+            collapseButton.onpointerdown = () => {
+              const { focusItemRotation } = getContentItemInfo()
+              selectedFocusUIControl = collapseButton
+              const { drawContext: ctxForPaintingOn, focusItemRotation: rotationForPaintingOn } =
+                contentItems.find(({ item }) => item === mostUpFrontContentItem.item)
+              function getElementCenter(element) {
+                const {x,y,width,height} = element.getBoundingClientRect()
+                return [x + width/2, y + height/2]
+              }
+              const [topLeftCornerMostUpFront] = calculateCornersBasedOnRotation(mostUpFrontContentItem.item)
+              const [focusCenterX, focusCenterY] = getElementCenter(focused_item)
+              const [XDiff, YDiff] = [focusCenterX - topLeftCornerMostUpFront[0],
+                focusCenterY - topLeftCornerMostUpFront[1]]
+              const length = Math.hypot(XDiff, YDiff)
+              const angle = Math.acos(XDiff / length) * (YDiff === 0 ? 1 : Math.sign(YDiff))
+              const angle_diff = angle - rotationForPaintingOn
+              const [rotatedX, rotatedY] = [length * Math.cos(angle_diff), length * Math.sin(angle_diff)]
+              const m = ctxForPaintingOn.getTransform()
+              const m_old = ctxForPaintingOn.getTransform()
+              const angle_diff_for_rotation = focusItemRotation - rotationForPaintingOn
+              m.translateSelf(rotatedX, rotatedY)
+              const matrix = new DOMMatrix(getComputedStyle(focused_item).transform)
+              const scaleXOfFocusElement = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
+              const scaleYOfFocusElement = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
+              if (focused_item.classList.contains("text-content-item")) m.scaleSelf(1/devicePixelRatio,1/devicePixelRatio)
+              m.rotateSelf(angle_diff_for_rotation * 180 / Math.PI)
+              ctxForPaintingOn.setTransform(m)
+              ctxForPaintingOn.drawImage(
+                focused_item,
+                 - focused_item.width/2,
+                 - focused_item.height/2
+              )
+              ctxForPaintingOn.setTransform(m_old)
+            }
           }
         } else {
           if (collapseButton) {
@@ -1226,6 +1265,9 @@
             focused_item.style.height = `${Math.max(10, heightvalue * scaleY)}px`;
             focused_item.width = Math.max(10, widthvalue * scaleX) * devicePixelRatio;
             focused_item.height = Math.max(10, heightvalue * scaleY) * devicePixelRatio;
+            //changing width/height props resets the canvas context so i have to rescale shit again
+            const { drawContext } = getContentItemInfo()
+            drawContext.scale(devicePixelRatio, devicePixelRatio)
             const [newTopLeftCorner] = calculateCornersBasedOnRotation(focused_item);
             const xDiff = topLeftX - newTopLeftCorner[0];
             const yDiff = topLeftY - newTopLeftCorner[1];
@@ -1356,12 +1398,12 @@
     function addTextContentItem() {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      ctx.font = `${textContentItemFontSize * devicePixelRatio}px`
       canvas.classList.add("content-item");
       canvas.classList.add("text-content-item");
       canvas.draggable = false;
-      canvas.width = 400;
-      canvas.height = 400;
+      canvas.width = 200 * devicePixelRatio;
+      canvas.height = 200 * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio)
       canvas.style.width = "200px"
       canvas.style.height = "200px"
       if (focused_item) removeFocusControls();
@@ -1384,6 +1426,7 @@
       textControlsMenuChildren.forEach((child) => (child.disabled = false));
       addFocusControls();
       alignFocusControls();
+      drawText("")
     }
     function createNewImageContentItem(imageUrl) {
       const img = new Image();
@@ -1655,7 +1698,7 @@
           let clipboardData = { "text/plain": contentItem.textContent.join("") };
           await navigator.clipboard.write([new ClipboardItem(clipboardData)])
         } else {
-          const { canvas } = getContentItemInfo(focused_item);
+          const { canvas } = getContentItemInfo();
           canvas.toBlob(async (blob) => {
             let clipboardData = { "image/png": blob };
             await navigator.clipboard.write([new ClipboardItem(clipboardData)]);
@@ -1709,7 +1752,7 @@
       while (idx < new_string.length) {
         const { width  } = drawContext.measureText(new_string.slice(start, idx))
         const { width: widthOfLetter } = drawContext.measureText(new_string.slice(idx - 1, idx))
-        if (width + widthOfLetter > focused_item.width) {
+        if (width + widthOfLetter > focused_item.width / devicePixelRatio) {
           new_splits.push(new_string.slice(start, idx))
           start = idx
         }
