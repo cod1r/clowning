@@ -1146,10 +1146,16 @@
                 const {x,y,width,height} = element.getBoundingClientRect()
                 return [x + width/2, y + height/2]
               }
+              const matrixOfElementToBePaintedOn = new DOMMatrix(getComputedStyle(mostUpFrontContentItem.item).transform);
+              const scaleXOfPaintedOn = Math.sqrt(
+                 matrixOfElementToBePaintedOn.a ** 2 + matrixOfElementToBePaintedOn.b ** 2);
+              const scaleYOfPaintedOn = Math.sqrt(
+                 matrixOfElementToBePaintedOn.c ** 2 + matrixOfElementToBePaintedOn.d ** 2);
+
               const [topLeftCornerMostUpFront] = calculateCornersBasedOnRotation(mostUpFrontContentItem.item)
               const [focusCenterX, focusCenterY] = getElementCenter(focused_item)
-              const [XDiff, YDiff] = [focusCenterX - topLeftCornerMostUpFront[0],
-                focusCenterY - topLeftCornerMostUpFront[1]]
+              const [XDiff, YDiff] = [(focusCenterX - topLeftCornerMostUpFront[0]) / scaleXOfPaintedOn,
+                (focusCenterY - topLeftCornerMostUpFront[1]) / scaleYOfPaintedOn]
               const length = Math.hypot(XDiff, YDiff)
               const angle = Math.acos(XDiff / length) * (YDiff === 0 ? 1 : Math.sign(YDiff))
               const angle_diff = angle - rotationForPaintingOn
@@ -1159,15 +1165,20 @@
               const angle_diff_for_rotation = focusItemRotation - rotationForPaintingOn
               m.translateSelf(rotatedX, rotatedY)
               const matrix = new DOMMatrix(getComputedStyle(focused_item).transform)
-              const scaleXOfFocusElement = Math.sqrt(matrix.a ** 2 + matrix.b ** 2);
-              const scaleYOfFocusElement = Math.sqrt(matrix.c ** 2 + matrix.d ** 2);
-              if (focused_item.classList.contains("text-content-item")) m.scaleSelf(1/devicePixelRatio,1/devicePixelRatio)
+              // I don't know if I should abstract this into it's own function
+              // because I have to do this everytime for every rotation or else the
+              // vertical/horizontal scale is going to be messed up
+              m.scaleSelf(1/scaleXOfPaintedOn, 1/scaleYOfPaintedOn);
               m.rotateSelf(angle_diff_for_rotation * 180 / Math.PI)
+              m.scaleSelf(scaleXOfPaintedOn, scaleYOfPaintedOn);
               ctxForPaintingOn.setTransform(m)
+              const [widthvalue, heightvalue] = getFocusItemWidthHeight();
               ctxForPaintingOn.drawImage(
                 focused_item,
-                 - focused_item.width/2,
-                 - focused_item.height/2
+                 -widthvalue/2/scaleXOfPaintedOn,
+                 -heightvalue/2/scaleYOfPaintedOn,
+                  widthvalue/scaleXOfPaintedOn,
+                  heightvalue/scaleYOfPaintedOn
               )
               ctxForPaintingOn.setTransform(m_old)
             }
