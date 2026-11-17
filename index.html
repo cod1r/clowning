@@ -1154,8 +1154,8 @@
 
               const [topLeftCornerMostUpFront] = calculateCornersBasedOnRotation(mostUpFrontContentItem.item)
               const [focusCenterX, focusCenterY] = getElementCenter(focused_item)
-              const [XDiff, YDiff] = [(focusCenterX - topLeftCornerMostUpFront[0]) / scaleXOfPaintedOn,
-                (focusCenterY - topLeftCornerMostUpFront[1]) / scaleYOfPaintedOn]
+              const [XDiff, YDiff] = [(focusCenterX - topLeftCornerMostUpFront[0]) / scaleXOfPaintedOn / contentAreaMatrix.a,
+                (focusCenterY - topLeftCornerMostUpFront[1]) / scaleYOfPaintedOn / contentAreaMatrix.a]
               const length = Math.hypot(XDiff, YDiff)
               const angle = Math.acos(XDiff / length) * (YDiff === 0 ? 1 : Math.sign(YDiff))
               const angle_diff = angle - rotationForPaintingOn
@@ -1165,6 +1165,10 @@
               const angle_diff_for_rotation = focusItemRotation - rotationForPaintingOn
               m.translateSelf(rotatedX, rotatedY)
               const matrix = new DOMMatrix(getComputedStyle(focused_item).transform)
+              const scaleXOfFocused = Math.sqrt(
+                 matrix.a ** 2 + matrix.b ** 2);
+              const scaleYOfFocused = Math.sqrt(
+                 matrix.c ** 2 + matrix.d ** 2);
               // I don't know if I should abstract this into it's own function
               // because I have to do this everytime for every rotation or else the
               // vertical/horizontal scale is going to be messed up
@@ -1175,10 +1179,10 @@
               const [widthvalue, heightvalue] = getFocusItemWidthHeight();
               ctxForPaintingOn.drawImage(
                 focused_item,
-                 -widthvalue/2/scaleXOfPaintedOn,
-                 -heightvalue/2/scaleYOfPaintedOn,
-                  widthvalue/scaleXOfPaintedOn,
-                  heightvalue/scaleYOfPaintedOn
+                 -widthvalue/2/scaleXOfPaintedOn * scaleXOfFocused,
+                 -heightvalue/2/scaleYOfPaintedOn * scaleYOfFocused,
+                  widthvalue/scaleXOfPaintedOn * scaleXOfFocused,
+                  heightvalue/scaleYOfPaintedOn * scaleYOfFocused
               )
               ctxForPaintingOn.setTransform(m_old)
             }
