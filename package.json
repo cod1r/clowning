@@ -1,6 +1,24 @@
 {
   "devDependencies": {
+    "flow-bin": "^0.340.0",
     "parcel": "^2.16.4",
-    "typescript": "^7.0.2"
+    "prettier": "3.10.1"
+  },
+  "scripts": {
+    "flow": "flow",
+    "format": "prettier src/* --write",
+    "build": "parcel index.html"
+  },
+  "prettier": {
+    "overrides": [
+      {
+        "files": [
+          "*.js"
+        ],
+        "options": {
+          "parser": "flow"
+        }
+      }
+    ]
   }
 }
